@@ -157,12 +157,12 @@ class SettingsTab(QWidget):
         
         company_layout.addWidget(QLabel("الهاتف:"), 2, 0, Qt.AlignmentFlag.AlignRight)
         self.company_phone = QLineEdit()
-        self.company_phone.setPlaceholderText("+966112345678")
+        self.company_phone.setPlaceholderText("+9647813563139")
         company_layout.addWidget(self.company_phone, 2, 1)
         
         company_layout.addWidget(QLabel("البريد الإلكتروني:"), 3, 0, Qt.AlignmentFlag.AlignRight)
         self.company_email = QLineEdit()
-        self.company_email.setPlaceholderText("info@company.com")
+        self.company_email.setPlaceholderText("ah343238@gmail.com")
         company_layout.addWidget(self.company_email, 3, 1)
         
         layout.addWidget(company_group)
@@ -473,9 +473,9 @@ class SettingsTab(QWidget):
             
             # معلومات الشركة
             self.company_name.setText(settings.get('company_name', APP_CONFIG['company']))
-            self.company_address.setText(settings.get('company_address', 'الرياض، المملكة العربية السعودية'))
-            self.company_phone.setText(settings.get('company_phone', '+966112345678'))
-            self.company_email.setText(settings.get('company_email', 'info@company.com'))
+            self.company_address.setText(settings.get('company_address', 'العراق , ذي قار'))
+            self.company_phone.setText(settings.get('company_phone', '+9647813563139'))
+            self.company_email.setText(settings.get('company_email', 'ah343238@gmail.com'))
             
             # إعدادات المضخات
             self.max_temperature.setValue(settings.get('max_temperature', PUMP_CONFIG['critical_temperature']))

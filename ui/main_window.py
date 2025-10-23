@@ -1,31 +1,34 @@
 """
-النافذة الرئيسية لتطبيق iPump - مع إضافة أزرار إدارة المضخات والحساسات
+Main window for iPump application
 """
 
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                            QTabWidget, QStatusBar, QMessageBox, QToolBar, 
                            QPushButton, QLabel, QSplitter, QFrame, QMenu,
                            QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QGridLayout,
-                           QComboBox, QDateEdit, QTextEdit, QListWidget, QListWidgetItem, QGroupBox)
+                           QComboBox, QDateEdit, QTextEdit, QListWidget, QListWidgetItem, QGroupBox,
+                           QSpinBox)
 from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QDate
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QDate, QThread, QSize
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
 from datetime import datetime, timedelta
 import pandas as pd
-from PyQt6.QtCore import QSize
 
 from ui.dashboard import DashboardTab
 from ui.analytics import AnalyticsTab
 from ui.maintenance import MaintenanceTab
 from ui.reporting import ReportingTab
 from ui.settings import SettingsTab
+
 from config import APP_CONFIG, UI_CONFIG
 from database import db_manager
 from ai_models import failure_predictor
 from utils.logger import get_logger
+
+from ui.workers import BackgroundWorker
 
 class MainWindow(QMainWindow):
     update_signal = pyqtSignal()
@@ -34,174 +37,201 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.logger = get_logger()
         self.current_pump_id = 1
-        self.cache = {}  # إضافة نظام التخزين المؤقت
-        self.cache_timeout = 30000  # 30 ثانية
+        self.cache = {}  # Add caching system
+        self.cache_timeout = 30000  # 30 seconds
         self.last_update_time = {}
+        self._bg_thread = None
+        self._bg_worker = None
         self.setup_ui()
         self.setup_timer()
         self.load_initial_data()
         
     def setup_ui(self):
-        """تهيئة واجهة المستخدم"""
+        """Initialize user interface"""
         self.setWindowTitle(APP_CONFIG['name'])
         self.setGeometry(100, 100, 1400, 900)
         
-        # إنشاء الشريط الرئيسي
+        # Create main toolbar
         self.create_toolbar()
         
-        # إنشاء القائمة الرئيسية
+        # Create main menu
         self.create_menubar()
         
-        # إنشاء الويدجت المركزي
+        # Create central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # التخطيط الرئيسي
+        # Main layout
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setSpacing(5)
         
-        # شريط الحالة العلوي
+        # Top status bar
         self.create_status_bar()
         main_layout.addWidget(self.top_status_bar)
         
-        # منطقة المحتوى الرئيسية
+        # Main content area
         content_splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # اللوحة الجانبية
+        # Side panel
         self.side_panel = self.create_side_panel()
         content_splitter.addWidget(self.side_panel)
         
-        # منطقة التبويبات الرئيسية
+        # Main tabs area
         self.tab_widget = QTabWidget()
         self.setup_tabs()
         content_splitter.addWidget(self.tab_widget)
         
-        # تعيين نسب التقسيم
+        # Set split ratios
         content_splitter.setSizes([300, 1100])
         main_layout.addWidget(content_splitter)
         
-        # شريط الحالة السفلي
+        # Bottom status bar
         self.create_bottom_status_bar()
         main_layout.addWidget(self.bottom_status_bar)
         
     def create_menubar(self):
-        """إنشاء شريط القوائم"""
+        """Create menu bar"""
         menubar = self.menuBar()
         
-        # قائمة الملف
-        file_menu = menubar.addMenu("الملف")
+        # File menu
+        file_menu = menubar.addMenu("File")
         
-        new_pump_action = QAction("إضافة مضخة جديدة", self)
+        new_pump_action = QAction("Add New Pump", self)
         new_pump_action.setShortcut("Ctrl+P")
         new_pump_action.triggered.connect(self.add_new_pump)
         file_menu.addAction(new_pump_action)
         
-        link_sensors_action = QAction("ربط الحساسات", self)
+        link_sensors_action = QAction("Link Sensors", self)
         link_sensors_action.setShortcut("Ctrl+S")
         link_sensors_action.triggered.connect(self.link_sensors)
         file_menu.addAction(link_sensors_action)
         
         file_menu.addSeparator()
         
-        import_action = QAction("استيراد بيانات", self)
+        import_action = QAction("Import Data", self)
         import_action.setShortcut("Ctrl+I")
         import_action.triggered.connect(self.import_data)
         file_menu.addAction(import_action)
         
-        export_action = QAction("تصدير البيانات", self)
+        export_action = QAction("Export Data", self)
         export_action.setShortcut("Ctrl+E")
         export_action.triggered.connect(self.export_data)
         file_menu.addAction(export_action)
         
         file_menu.addSeparator()
         
-        exit_action = QAction("خروج", self)
+        exit_action = QAction("Exit", self)
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
         
-        # قائمة العرض
-        view_menu = menubar.addMenu("العرض")
+        # View menu
+        view_menu = menubar.addMenu("View")
         
-        refresh_action = QAction("تحديث", self)
+        refresh_action = QAction("Refresh", self)
         refresh_action.setShortcut("F5")
         refresh_action.triggered.connect(self.refresh_data)
         view_menu.addAction(refresh_action)
         
-        fullscreen_action = QAction("ملء الشاشة", self)
+        # Window size submenu
+        window_menu = view_menu.addMenu("Window Size")
+        
+        small_action = QAction("Small (800×600)", self)
+        small_action.triggered.connect(lambda: self.set_window_size_preset('small'))
+        window_menu.addAction(small_action)
+        
+        medium_action = QAction("Medium (1024×768)", self)
+        medium_action.triggered.connect(lambda: self.set_window_size_preset('medium'))
+        window_menu.addAction(medium_action)
+        
+        large_action = QAction("Large (1366×900)", self)
+        large_action.triggered.connect(lambda: self.set_window_size_preset('large'))
+        window_menu.addAction(large_action)
+        
+        window_menu.addSeparator()
+        
+        custom_action = QAction("Custom...", self)
+        custom_action.triggered.connect(self.show_custom_size_dialog)
+        window_menu.addAction(custom_action)
+        
+        default_action = QAction("Default", self)
+        default_action.triggered.connect(lambda: self.set_window_size_preset('default'))
+        window_menu.addAction(default_action)
+        
+        fullscreen_action = QAction("Fullscreen", self)
         fullscreen_action.setShortcut("F11")
         fullscreen_action.triggered.connect(self.toggle_fullscreen)
         view_menu.addAction(fullscreen_action)
         
-        # قائمة الأدوات
-        tools_menu = menubar.addMenu("الأدوات")
+        # Tools menu
+        tools_menu = menubar.addMenu("Tools")
         
-        pump_manager_action = QAction("مدير المضخات", self)
+        pump_manager_action = QAction("Pump Manager", self)
         pump_manager_action.setShortcut("Ctrl+M")
         pump_manager_action.triggered.connect(self.open_pump_manager)
         tools_menu.addAction(pump_manager_action)
         
-        sensor_manager_action = QAction("مدير الحساسات", self)
+        sensor_manager_action = QAction("Sensor Manager", self)
         sensor_manager_action.setShortcut("Ctrl+L")
         sensor_manager_action.triggered.connect(self.open_sensor_manager)
         tools_menu.addAction(sensor_manager_action)
         
-        # قائمة المساعدة
-        help_menu = menubar.addMenu("المساعدة")
+        # Help menu
+        help_menu = menubar.addMenu("Help")
         
-        about_action = QAction("عن البرنامج", self)
+        about_action = QAction("About", self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
         
-        docs_action = QAction("الوثائق", self)
+        docs_action = QAction("Documentation", self)
         docs_action.triggered.connect(self.show_documentation)
         help_menu.addAction(docs_action)
         
     def create_toolbar(self):
-        """إنشاء شريط الأدوات مع أزرار إدارة المضخات"""
-        toolbar = QToolBar("الشريط الرئيسي")
+        """Create toolbar with pump management buttons"""
+        toolbar = QToolBar("Main Toolbar")
         toolbar.setMovable(False)
         toolbar.setIconSize(QSize(32, 32))
         self.addToolBar(toolbar)
         
-        # إجراءات الملف
-        new_action = QAction("مشروع جديد", self)
+        # File actions
+        new_action = QAction("New Project", self)
         new_action.setShortcut("Ctrl+N")
         new_action.triggered.connect(self.new_project)
         toolbar.addAction(new_action)
         
-        save_action = QAction("حفظ", self)
+        save_action = QAction("Save", self)
         save_action.setShortcut("Ctrl+S")
         save_action.triggered.connect(self.save_data)
         toolbar.addAction(save_action)
         
         toolbar.addSeparator()
         
-        # أزرار إدارة المضخات
-        add_pump_action = QAction("إضافة مضخة", self)
+        # Pump management buttons
+        add_pump_action = QAction("Add Pump", self)
         add_pump_action.triggered.connect(self.add_new_pump)
         toolbar.addAction(add_pump_action)
         
-        link_sensors_action = QAction("ربط حساسات", self)
+        link_sensors_action = QAction("Link Sensors", self)
         link_sensors_action.triggered.connect(self.link_sensors)
         toolbar.addAction(link_sensors_action)
         
         toolbar.addSeparator()
         
-        # إجراءات العرض
-        refresh_action = QAction("تحديث", self)
+        # View actions
+        refresh_action = QAction("Refresh", self)
         refresh_action.setShortcut("F5")
         refresh_action.triggered.connect(self.refresh_data)
         toolbar.addAction(refresh_action)
         
-        # زر الإعدادات
-        settings_action = QAction("الإعدادات", self)
+        # Settings button
+        settings_action = QAction("Settings", self)
         settings_action.triggered.connect(self.open_settings)
         toolbar.addAction(settings_action)
         
     def create_status_bar(self):
-        """إنشاء شريط الحالة العلوي"""
+        """Create top status bar"""
         self.top_status_bar = QFrame()
         self.top_status_bar.setMaximumHeight(60)
         self.top_status_bar.setStyleSheet("""
@@ -215,7 +245,7 @@ class MainWindow(QMainWindow):
         top_layout = QHBoxLayout(self.top_status_bar)
         top_layout.setContentsMargins(15, 5, 15, 5)
         
-        # عنوان التطبيق
+        # Application title
         title_label = QLabel(APP_CONFIG['name'])
         title_font = QFont()
         title_font.setPointSize(16)
@@ -223,12 +253,12 @@ class MainWindow(QMainWindow):
         title_label.setFont(title_font)
         title_label.setStyleSheet("color: #1e88e5;")
         
-        # معلومات النظام
-        system_info = QLabel(f"الإصدار: {APP_CONFIG['version']} | {APP_CONFIG['company']}")
+        # System info
+        system_info = QLabel(f"Version: {APP_CONFIG['version']} | {APP_CONFIG['company']}")
         system_info.setStyleSheet("color: #90a4ae;")
         
-        # حالة الاتصال
-        self.connection_status = QLabel("🟢 متصل")
+        # Connection status
+        self.connection_status = QLabel("🟢 Connected")
         self.connection_status.setStyleSheet("color: #51cf66; font-weight: bold;")
         
         top_layout.addWidget(title_label)
@@ -238,7 +268,7 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(self.connection_status)
         
     def create_side_panel(self):
-        """إنشاء اللوحة الجانبية مع أزرار سريعة"""
+        """Create side panel with quick buttons"""
         side_panel = QFrame()
         side_panel.setFrameShape(QFrame.Shape.StyledPanel)
         side_panel.setMinimumWidth(280)
@@ -254,8 +284,8 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(15)
         
-        # عنوان اللوحة الجانبية
-        side_title = QLabel("نظرة عامة على النظام")
+        # Side panel title
+        side_title = QLabel("System Overview")
         side_title.setStyleSheet("""
             QLabel {
                 font-size: 16px;
@@ -270,8 +300,8 @@ class MainWindow(QMainWindow):
         side_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(side_title)
         
-        # أزرار سريعة
-        quick_actions_group = QGroupBox("إجراءات سريعة")
+        # Quick actions
+        quick_actions_group = QGroupBox("Quick Actions")
         quick_actions_group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
@@ -290,8 +320,8 @@ class MainWindow(QMainWindow):
         """)
         quick_actions_layout = QVBoxLayout(quick_actions_group)
         
-        # زر إضافة مضخة جديدة
-        self.quick_add_pump_btn = QPushButton("➕ إضافة مضخة جديدة")
+        # Add new pump button
+        self.quick_add_pump_btn = QPushButton("➕ Add New Pump")
         self.quick_add_pump_btn.clicked.connect(self.add_new_pump)
         self.quick_add_pump_btn.setStyleSheet("""
             QPushButton {
@@ -312,8 +342,8 @@ class MainWindow(QMainWindow):
         """)
         quick_actions_layout.addWidget(self.quick_add_pump_btn)
         
-        # زر ربط الحساسات
-        self.quick_link_sensors_btn = QPushButton("🔗 ربط الحساسات بالمضخات")
+        # Link sensors button
+        self.quick_link_sensors_btn = QPushButton("🔗 Link Sensors to Pumps")
         self.quick_link_sensors_btn.clicked.connect(self.link_sensors)
         self.quick_link_sensors_btn.setStyleSheet("""
             QPushButton {
@@ -334,8 +364,8 @@ class MainWindow(QMainWindow):
         """)
         quick_actions_layout.addWidget(self.quick_link_sensors_btn)
         
-        # زر إدارة المضخات
-        self.quick_manage_pumps_btn = QPushButton("⚙️ إدارة المضخات")
+        # Pump manager button
+        self.quick_manage_pumps_btn = QPushButton("⚙️ Manage Pumps")
         self.quick_manage_pumps_btn.clicked.connect(self.open_pump_manager)
         self.quick_manage_pumps_btn.setStyleSheet("""
             QPushButton {
@@ -358,13 +388,13 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(quick_actions_group)
         
-        # إحصائيات سريعة
+        # Quick stats
         self.setup_quick_stats(layout)
         
-        # المضخات النشطة
+        # Active pumps
         self.setup_active_pumps(layout)
         
-        # الإنذارات النشطة
+        # Active alerts
         self.setup_active_alerts(layout)
         
         layout.addStretch()
@@ -372,7 +402,7 @@ class MainWindow(QMainWindow):
         return side_panel
     
     def setup_quick_stats(self, layout):
-        """إعداد الإحصائيات السريعة"""
+        """Setup quick statistics"""
         stats_frame = QFrame()
         stats_frame.setStyleSheet("""
             QFrame {
@@ -384,38 +414,38 @@ class MainWindow(QMainWindow):
         """)
         stats_layout = QVBoxLayout(stats_frame)
         
-        stats_title = QLabel("📊 الإحصائيات السريعة")
+        stats_title = QLabel("📊 Quick Statistics")
         stats_title.setStyleSheet("font-weight: bold; color: #e3f2fd; font-size: 14px;")
         stats_layout.addWidget(stats_title)
         
-        # إحصائيات حية
+        # Live statistics
         stats_grid = QGridLayout()
         
         self.total_pumps_label = QLabel("0")
         self.total_pumps_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #1e88e5;")
-        stats_grid.addWidget(QLabel("إجمالي المضخات:"), 0, 0)
+        stats_grid.addWidget(QLabel("Total Pumps:"), 0, 0)
         stats_grid.addWidget(self.total_pumps_label, 0, 1)
         
         self.operational_label = QLabel("0")
         self.operational_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #51cf66;")
-        stats_grid.addWidget(QLabel("المضخات العاملة:"), 1, 0)
+        stats_grid.addWidget(QLabel("Operational Pumps:"), 1, 0)
         stats_grid.addWidget(self.operational_label, 1, 1)
         
         self.sensors_label = QLabel("0")
         self.sensors_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #f59f00;")
-        stats_grid.addWidget(QLabel("الحساسات النشطة:"), 2, 0)
+        stats_grid.addWidget(QLabel("Active Sensors:"), 2, 0)
         stats_grid.addWidget(self.sensors_label, 2, 1)
         
         self.alerts_label = QLabel("0")
         self.alerts_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #ff6b6b;")
-        stats_grid.addWidget(QLabel("الإنذارات النشطة:"), 3, 0)
+        stats_grid.addWidget(QLabel("Active Alerts:"), 3, 0)
         stats_grid.addWidget(self.alerts_label, 3, 1)
         
         stats_layout.addLayout(stats_grid)
         layout.addWidget(stats_frame)
     
     def setup_active_pumps(self, layout):
-        """إعداد قائمة المضخات النشطة"""
+        """Setup active pumps list"""
         pumps_frame = QFrame()
         pumps_frame.setStyleSheet("""
             QFrame {
@@ -427,7 +457,7 @@ class MainWindow(QMainWindow):
         """)
         pumps_layout = QVBoxLayout(pumps_frame)
         
-        pumps_title = QLabel("🔧 المضخات النشطة")
+        pumps_title = QLabel("🔧 Active Pumps")
         pumps_title.setStyleSheet("font-weight: bold; color: #e3f2fd; font-size: 14px;")
         pumps_layout.addWidget(pumps_title)
         
@@ -453,7 +483,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(pumps_frame)
     
     def setup_active_alerts(self, layout):
-        """إعداد عرض الإنذارات النشطة"""
+        """Setup active alerts display"""
         alerts_frame = QFrame()
         alerts_frame.setStyleSheet("""
             QFrame {
@@ -465,11 +495,11 @@ class MainWindow(QMainWindow):
         """)
         alerts_layout = QVBoxLayout(alerts_frame)
         
-        alerts_title = QLabel("🚨 الإنذارات النشطة")
+        alerts_title = QLabel("🚨 Active Alerts")
         alerts_title.setStyleSheet("font-weight: bold; color: #ff6b6b; font-size: 14px;")
         alerts_layout.addWidget(alerts_title)
         
-        self.alerts_list = QLabel("لا توجد إنذارات نشطة")
+        self.alerts_list = QLabel("No active alerts")
         self.alerts_list.setStyleSheet("""
             QLabel {
                 color: #b0bec5; 
@@ -483,8 +513,8 @@ class MainWindow(QMainWindow):
         self.alerts_list.setMinimumHeight(80)
         alerts_layout.addWidget(self.alerts_list)
         
-        # زر عرض جميع الإنذارات
-        view_all_alerts_btn = QPushButton("عرض جميع الإنذارات")
+        # View all alerts button
+        view_all_alerts_btn = QPushButton("View All Alerts")
         view_all_alerts_btn.clicked.connect(self.view_all_alerts)
         view_all_alerts_btn.setStyleSheet("""
             QPushButton {
@@ -504,20 +534,20 @@ class MainWindow(QMainWindow):
         layout.addWidget(alerts_frame)
     
     def setup_tabs(self):
-        """إعداد التبويبات الرئيسية"""
+        """Setup main tabs"""
         self.dashboard_tab = DashboardTab()
         self.analytics_tab = AnalyticsTab()
         self.maintenance_tab = MaintenanceTab()
         self.reporting_tab = ReportingTab()
         self.settings_tab = SettingsTab()
         
-        self.tab_widget.addTab(self.dashboard_tab, "🏠 لوحة التحكم")
-        self.tab_widget.addTab(self.analytics_tab, "📈 التحليلات")
-        self.tab_widget.addTab(self.maintenance_tab, "🔧 إدارة الصيانة")
-        self.tab_widget.addTab(self.reporting_tab, "📊 التقارير")
-        self.tab_widget.addTab(self.settings_tab, "⚙️ الإعدادات")
+        self.tab_widget.addTab(self.dashboard_tab, "🏠 Dashboard")
+        self.tab_widget.addTab(self.analytics_tab, "📈 Analytics")
+        self.tab_widget.addTab(self.maintenance_tab, "🔧 Maintenance")
+        self.tab_widget.addTab(self.reporting_tab, "📊 Reports")
+        self.tab_widget.addTab(self.settings_tab, "⚙️ Settings")
         
-        # تخصيص مظهر التبويبات
+        # Customize tab appearance
         self.tab_widget.setStyleSheet("""
             QTabWidget::pane {
                 border: 1px solid #334155;
@@ -540,23 +570,87 @@ class MainWindow(QMainWindow):
             }
         """)
         
-        # ربط إشارة التحديث
+        # Connect update signal
         self.update_signal.connect(self.update_all_tabs)
     
     def setup_timer(self):
-        """إعداد المؤقت للتحديث التلقائي"""
-        # تقليل معدل التحديث لتحسين الأداء
+        """Setup timer for automatic updates"""
         self.update_timer = QTimer()
-        self.update_timer.timeout.connect(self.auto_update)
-        self.update_timer.start(30000)  # 30 ثانية بدلاً من فترات قصيرة
+        self.update_timer.timeout.connect(self.start_background_update)
         
-        # مؤقت للتحديث البطيء (كل 5 دقائق)
+        # Set minimum refresh interval
+        refresh_interval = UI_CONFIG.get('refresh_interval', 30000)
+        if refresh_interval < 1000:
+            refresh_interval = 1000
+        self.update_timer.start(refresh_interval)
+
         self.slow_update_timer = QTimer()
         self.slow_update_timer.timeout.connect(self.slow_update)
-        self.slow_update_timer.start(300000)  # 5 دقائق
-    
+        self.slow_update_timer.start(300000)  # 5 minutes
+
+    def start_background_update(self):
+        """Start background update in separate thread for sensor data collection"""
+        try:
+            if self._bg_thread is not None and self._bg_thread.isRunning():
+                return
+
+            if not hasattr(self.dashboard_tab, 'generate_sensor_data'):
+                self.auto_update()
+                return
+
+            thread = QThread()
+            worker = BackgroundWorker(self.dashboard_tab.generate_sensor_data)
+
+            worker.moveToThread(thread)
+            thread.started.connect(worker.run)
+
+            worker.signals.result.connect(self.on_sensor_data_ready)
+            worker.signals.error.connect(self.on_worker_error)
+            worker.signals.finished.connect(thread.quit)
+            worker.signals.finished.connect(worker.deleteLater)
+            thread.finished.connect(thread.deleteLater)
+
+            self._bg_thread = thread
+            self._bg_worker = worker
+
+            thread.start()
+        except Exception as e:
+            self.logger.error(f"Error starting background update: {e}")
+
+    def on_sensor_data_ready(self, sensor_data):
+        """Apply background processing results to UI"""
+        try:
+            if hasattr(self.dashboard_tab, 'update_kpi_values'):
+                try:
+                    self.dashboard_tab.update_kpi_values(sensor_data)
+                except Exception:
+                    self.logger.debug("Error in update_kpi_values (ignored).")
+
+            if hasattr(self.dashboard_tab, 'update_live_charts'):
+                try:
+                    self.dashboard_tab.update_live_charts(sensor_data)
+                except Exception:
+                    self.logger.debug("Error updating live charts (ignored).")
+
+            if hasattr(self.dashboard_tab, 'update_predictions'):
+                try:
+                    self.dashboard_tab.update_predictions(sensor_data)
+                except Exception:
+                    self.logger.debug("Error updating predictions (ignored).")
+
+            if hasattr(self.dashboard_tab, 'update_pump_status'):
+                try:
+                    self.dashboard_tab.update_pump_status(sensor_data)
+                except Exception:
+                    self.logger.debug("Error updating pump status (ignored).")
+        except Exception as e:
+            self.logger.error(f"Error applying sensor data to UI: {e}")
+
+    def on_worker_error(self, err_text):
+        self.logger.error(f"Worker error: {err_text}")
+
     def get_cached_data(self, key, fetch_function, force_refresh=False):
-        """الحصول على بيانات مع التخزين المؤقت"""
+        """Get data with caching"""
         now = datetime.now().timestamp() * 1000
         
         if not force_refresh and key in self.cache:
@@ -564,27 +658,27 @@ class MainWindow(QMainWindow):
             if now - timestamp < self.cache_timeout:
                 return data
         
-        # جلب بيانات جديدة
+        # Fetch new data
         data = fetch_function()
         self.cache[key] = (data, now)
         return data
     
     def clear_cache(self, key=None):
-        """مسح التخزين المؤقت"""
+        """Clear cache"""
         if key:
             self.cache.pop(key, None)
         else:
             self.cache.clear()
     
     def load_initial_data(self):
-        """تحميل البيانات الأولية"""
+        """Load initial data"""
         self.update_quick_stats()
         self.update_active_pumps()
         self.update_active_alerts()
         self.update_connection_status()
     
     def update_quick_stats(self):
-        """تحديث الإحصائيات السريعة"""
+        """Update quick statistics"""
         try:
             stats = self.get_cached_data('system_stats', db_manager.get_system_stats)
             
@@ -594,49 +688,44 @@ class MainWindow(QMainWindow):
             self.alerts_label.setText(str(stats.get('active_alerts', 0)))
             
         except Exception as e:
-            self.logger.error(f"خطأ في تحديث الإحصائيات: {e}")
+            self.logger.error(f"Error updating statistics: {e}")
     
     def update_active_pumps(self):
-        """تحديث قائمة المضخات النشطة"""
+        """Update active pumps list"""
         try:
             pumps = self.get_cached_data('pumps', db_manager.get_pumps_with_stats)
-            
-            # تحديث تدريجي بدلاً من مسح كامل
+
             current_items = {}
             for i in range(self.pumps_list.count()):
                 item = self.pumps_list.item(i)
                 pump_id = item.data(Qt.ItemDataRole.UserRole)
                 current_items[pump_id] = (i, item)
-            
-            # تحديث أو إضافة المضخات
+
             for _, pump in pumps.iterrows():
                 pump_id = pump['id']
                 status_icon = "🟢" if pump['status'] == 'operational' else "🟡" if pump['status'] == 'maintenance' else "🔴"
-                item_text = f"{status_icon} {pump['name']}\n📍 {pump['location']} | ⚡ {pump['sensor_count']} حساس"
-                
+                item_text = f"{status_icon} {pump['name']}\n📍 {pump['location']} | ⚡ {pump['sensor_count']} sensors"
+
                 if pump_id in current_items:
-                    # تحديث العنصر الموجود
                     index, item = current_items[pump_id]
                     if item.text() != item_text:
                         item.setText(item_text)
                         self.update_pump_item_style(item, pump)
-                    # إزالة من القائمة الحالية
                     current_items.pop(pump_id)
                 else:
-                    # إضافة عنصر جديد
                     self.add_pump_item(pump)
-            
-            # إزالة المضخات التي لم تعد موجودة
-            for pump_id, (index, _) in current_items.items():
-                self.pumps_list.takeItem(index)
-                
+
+            indices_to_remove = [idx for (idx, _) in current_items.values()]
+            for idx in sorted(indices_to_remove, reverse=True):
+                self.pumps_list.takeItem(idx)
+
         except Exception as e:
-            self.logger.error(f"خطأ في تحديث قائمة المضخات: {e}")
+            self.logger.error(f"Error updating pumps list: {e}")
     
     def add_pump_item(self, pump):
-        """إضافة عنصر مضخة جديد"""
+        """Add new pump item"""
         status_icon = "🟢" if pump['status'] == 'operational' else "🟡" if pump['status'] == 'maintenance' else "🔴"
-        item_text = f"{status_icon} {pump['name']}\n📍 {pump['location']} | ⚡ {pump['sensor_count']} حساس"
+        item_text = f"{status_icon} {pump['name']}\n📍 {pump['location']} | ⚡ {pump['sensor_count']} sensors"
         
         item = QListWidgetItem(item_text)
         item.setData(Qt.ItemDataRole.UserRole, pump['id'])
@@ -644,7 +733,7 @@ class MainWindow(QMainWindow):
         self.pumps_list.addItem(item)
     
     def update_pump_item_style(self, item, pump):
-        """تحديث نمط عنصر المضخة"""
+        """Update pump item style"""
         if pump['status'] == 'operational':
             item.setBackground(QColor(81, 207, 102, 50))
         elif pump['status'] == 'maintenance':
@@ -653,13 +742,13 @@ class MainWindow(QMainWindow):
             item.setBackground(QColor(255, 107, 107, 50))
     
     def update_active_alerts(self):
-        """تحديث قائمة الإنذارات النشطة"""
+        """Update active alerts list"""
         try:
             alerts = self.get_cached_data('alerts', db_manager.get_active_alerts)
             
             if alerts.empty:
-                if self.alerts_list.text() != "✅ لا توجد إنذارات نشطة":
-                    self.alerts_list.setText("✅ لا توجد إنذارات نشطة")
+                if self.alerts_list.text() != "✅ No active alerts":
+                    self.alerts_list.setText("✅ No active alerts")
                 return
             
             alerts_text = self.format_alerts_text(alerts)
@@ -667,26 +756,25 @@ class MainWindow(QMainWindow):
                 self.alerts_list.setText(alerts_text)
                 
         except Exception as e:
-            self.logger.error(f"خطأ في تحديث الإنذارات: {e}")
+            self.logger.error(f"Error updating alerts: {e}")
     
     def format_alerts_text(self, alerts):
-        """تنسيق نص الإنذارات"""
+        """Format alerts text"""
         alerts_text = ""
         alert_count = 0
-        for _, alert in alerts.head(3).iterrows():  # عرض أول 3 إنذارات فقط
+        for _, alert in alerts.head(3).iterrows():  # Show only first 3 alerts
             severity_icon = "🔴" if alert['severity'] == 'high' else "🟡" if alert['severity'] == 'medium' else "🔵"
             alerts_text += f"{severity_icon} {alert['pump_name']}: {alert['message']}\n"
             alert_count += 1
         
         if len(alerts) > 3:
-            alerts_text += f"... ⚠️ و{len(alerts) - 3} إنذار آخر"
+            alerts_text += f"... ⚠️ and {len(alerts) - 3} more alerts"
         
         return alerts_text
     
     def update_connection_status(self):
-        """تحديث حالة الاتصال"""
+        """Update connection status"""
         try:
-            # استخدام التخزين المؤقت
             stats = self.get_cached_data('system_stats', db_manager.get_system_stats)
             last_update = stats.get('last_data_update')
             
@@ -694,45 +782,45 @@ class MainWindow(QMainWindow):
                 last_update_time = datetime.fromisoformat(last_update.replace('Z', '+00:00'))
                 time_diff = datetime.now().replace(tzinfo=None) - last_update_time.replace(tzinfo=None)
                 
-                if time_diff.total_seconds() < 300:  # أقل من 5 دقائق
-                    self.connection_status.setText("🟢 متصل")
+                if time_diff.total_seconds() < 300:  # Less than 5 minutes
+                    self.connection_status.setText("🟢 Connected")
                     self.connection_status.setStyleSheet("color: #51cf66; font-weight: bold;")
                 else:
-                    self.connection_status.setText("🟡 اتصال ضعيف")
+                    self.connection_status.setText("🟡 Weak connection")
                     self.connection_status.setStyleSheet("color: #f59f00; font-weight: bold;")
             else:
-                self.connection_status.setText("🔴 غير متصل")
+                self.connection_status.setText("🔴 Disconnected")
                 self.connection_status.setStyleSheet("color: #ff6b6b; font-weight: bold;")
                 
         except Exception as e:
-            self.logger.error(f"خطأ في تحديث حالة الاتصال: {e}")
+            self.logger.error(f"Error updating connection status: {e}")
     
     def auto_update(self):
-        """التحديث التلقائي للبيانات"""
+        """Automatic data update"""
         try:
             self.update_quick_stats()
             self.update_active_alerts()
             self.update_signal.emit()
         except Exception as e:
-            self.logger.error(f"خطأ في التحديث التلقائي: {e}")
-            self.clear_cache()  # مسح cache في حالة الخطأ
+            self.logger.error(f"Error in auto update: {e}")
+            self.clear_cache()
     
     def slow_update(self):
-        """التحديث البطيء للبيانات"""
+        """Slow data update"""
         try:
             self.update_active_pumps()
             self.update_connection_status()
         except Exception as e:
-            self.logger.error(f"خطأ في التحديث البطيء: {e}")
+            self.logger.error(f"Error in slow update: {e}")
     
     def update_all_tabs(self):
-        """تحديث جميع التبويبات"""
+        """Update all tabs"""
         self.dashboard_tab.refresh_data()
         self.analytics_tab.refresh_data()
         self.maintenance_tab.refresh_data()
     
     def create_bottom_status_bar(self):
-        """إنشاء شريط الحالة السفلي"""
+        """Create bottom status bar"""
         self.bottom_status_bar = QStatusBar()
         self.bottom_status_bar.setStyleSheet("""
             QStatusBar {
@@ -743,36 +831,36 @@ class MainWindow(QMainWindow):
         """)
         self.setStatusBar(self.bottom_status_bar)
         
-        # إضافة معلومات الحالة
-        self.status_label = QLabel("✅ جاهز")
+        # Add status information
+        self.status_label = QLabel("✅ Ready")
         self.bottom_status_bar.addWidget(self.status_label)
         
-        # إضافة معلومات الذاكرة
+        # Add memory information
         self.memory_label = QLabel()
         self.update_memory_usage()
         self.bottom_status_bar.addPermanentWidget(self.memory_label)
         
-        # إضافة الوقت
+        # Add time
         self.time_label = QLabel()
         self.update_time()
         self.bottom_status_bar.addPermanentWidget(self.time_label)
         
-        # مؤقتات التحديث - تقليل التكرار
+        # Update timers - reduced frequency
         self.time_timer = QTimer()
         self.time_timer.timeout.connect(self.update_time)
-        self.time_timer.start(5000)  # كل 5 ثواني بدلاً من كل ثانية
+        self.time_timer.start(5000)  # Every 5 seconds instead of every second
         
         self.memory_timer = QTimer()
         self.memory_timer.timeout.connect(self.update_memory_usage)
-        self.memory_timer.start(30000)  # كل 30 ثانية بدلاً من كل 5 ثواني
+        self.memory_timer.start(30000)  # Every 30 seconds instead of every 5 seconds
     
     def update_time(self):
-        """تحديث عرض الوقت"""
+        """Update time display"""
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.time_label.setText(f"🕒 {current_time}")
     
     def update_memory_usage(self):
-        """تحديث استخدام الذاكرة"""
+        """Update memory usage"""
         try:
             import psutil
             process = psutil.Process()
@@ -782,24 +870,24 @@ class MainWindow(QMainWindow):
             self.memory_label.setText("💾 -- MB")
     
     def on_pump_selected(self, item):
-        """عند اختيار مضخة من القائمة"""
+        """When pump is selected from list"""
         try:
             pump_id = item.data(Qt.ItemDataRole.UserRole)
             self.current_pump_id = pump_id
             
-            # تحديث التبويبات بالمضخة المحددة
+            # Update tabs with selected pump
             if hasattr(self.dashboard_tab, 'select_pump'):
                 self.dashboard_tab.select_pump(pump_id)
             if hasattr(self.analytics_tab, 'select_pump'):
                 self.analytics_tab.select_pump(pump_id)
             
-            self.status_label.setText(f"✅ تم اختيار المضخة: {item.text().split(' ')[1]}")
+            self.status_label.setText(f"✅ Selected pump: {item.text().split(' ')[1]}")
             
         except Exception as e:
-            self.logger.error(f"خطأ في اختيار المضخة: {e}")
+            self.logger.error(f"Error selecting pump: {e}")
     
     def add_new_pump(self):
-        """إضافة مضخة جديدة"""
+        """Add new pump"""
         try:
             dialog = AddPumpDialog(self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -807,155 +895,187 @@ class MainWindow(QMainWindow):
                 pump_id = db_manager.add_pump(pump_data)
                 
                 if pump_id > 0:
-                    self.status_label.setText(f"✅ تم إضافة المضخة: {pump_data['name']}")
-                    # مسح cache ذو الصلة
+                    self.status_label.setText(f"✅ Added pump: {pump_data['name']}")
+                    # Clear relevant cache
                     self.clear_cache('pumps')
                     self.clear_cache('system_stats')
                     self.load_initial_data()
                     self.update_all_tabs()
                     
-                    # الانتقال إلى تبويب إدارة المضخات
+                    # Switch to maintenance tab
                     self.tab_widget.setCurrentWidget(self.maintenance_tab)
                     
-                    QMessageBox.information(self, "تم بنجاح", f"تم إضافة المضخة '{pump_data['name']}' بنجاح")
+                    QMessageBox.information(self, "Success", f"Pump '{pump_data['name']}' added successfully")
                 else:
-                    QMessageBox.warning(self, "خطأ", "فشل في إضافة المضخة. قد يكون الاسم مكرراً.")
+                    QMessageBox.warning(self, "Error", "Failed to add pump. Name may be duplicate.")
             
         except Exception as e:
-            self.logger.error(f"خطأ في إضافة المضخة: {e}")
-            QMessageBox.warning(self, "خطأ", f"حدث خطأ أثناء إضافة المضخة: {str(e)}")
+            self.logger.error(f"Error adding pump: {e}")
+            QMessageBox.warning(self, "Error", f"Error adding pump: {str(e)}")
     
     def link_sensors(self):
-        """ربط الحساسات بالمضخات"""
+        """Link sensors to pumps"""
         try:
             dialog = LinkSensorsDialog(self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
-                self.status_label.setText("✅ تم ربط الحساسات بنجاح")
-                # مسح cache ذو الصلة
+                self.status_label.setText("✅ Sensors linked successfully")
+                # Clear relevant cache
                 self.clear_cache('pumps')
                 self.clear_cache('system_stats')
                 self.clear_cache('alerts')
                 self.load_initial_data()
-                QMessageBox.information(self, "تم بنجاح", "تم ربط الحساسات بالمضخات بنجاح")
+                QMessageBox.information(self, "Success", "Sensors linked to pumps successfully")
             
         except Exception as e:
-            self.logger.error(f"خطأ في ربط الحساسات: {e}")
-            QMessageBox.warning(self, "خطأ", f"حدث خطأ أثناء ربط الحساسات: {str(e)}")
+            self.logger.error(f"Error linking sensors: {e}")
+            QMessageBox.warning(self, "Error", f"Error linking sensors: {str(e)}")
     
     def open_pump_manager(self):
-        """فتح مدير المضخات"""
+        """Open pump manager"""
         try:
             self.tab_widget.setCurrentWidget(self.maintenance_tab)
-            self.status_label.setText("📋 فتح مدير المضخات")
+            self.status_label.setText("📋 Opening pump manager")
         except Exception as e:
-            self.logger.error(f"خطأ في فتح مدير المضخات: {e}")
+            self.logger.error(f"Error opening pump manager: {e}")
     
     def open_sensor_manager(self):
-        """فتح مدير الحساسات"""
+        """Open sensor manager"""
         try:
             self.tab_widget.setCurrentWidget(self.maintenance_tab)
-            # هنا يمكن إضافة منطق للانتقال إلى قسم الحساسات مباشرة
-            self.status_label.setText("📡 فتح مدير الحساسات")
+            self.status_label.setText("📡 Opening sensor manager")
         except Exception as e:
-            self.logger.error(f"خطأ في فتح مدير الحساسات: {e}")
+            self.logger.error(f"Error opening sensor manager: {e}")
     
     def open_settings(self):
-        """فتح الإعدادات"""
+        """Open settings"""
         try:
             self.tab_widget.setCurrentWidget(self.settings_tab)
-            self.status_label.setText("⚙️ فتح الإعدادات")
+            self.status_label.setText("⚙️ Opening settings")
         except Exception as e:
-            self.logger.error(f"خطأ في فتح الإعدادات: {e}")
+            self.logger.error(f"Error opening settings: {e}")
     
     def view_all_alerts(self):
-        """عرض جميع الإنذارات"""
+        """View all alerts"""
         try:
-            # الانتقال إلى تبويب التحليلات أو إنشاء نافذة جديدة للإنذارات
             self.tab_widget.setCurrentWidget(self.analytics_tab)
-            self.status_label.setText("🚨 عرض جميع الإنذارات")
+            self.status_label.setText("🚨 Viewing all alerts")
         except Exception as e:
-            self.logger.error(f"خطأ في عرض الإنذارات: {e}")
+            self.logger.error(f"Error viewing alerts: {e}")
     
     def import_data(self):
-        """استيراد بيانات"""
+        """Import data"""
         try:
-            QMessageBox.information(self, "استيراد بيانات", "سيتم تطوير ميزة الاستيراد في النسخة القادمة")
+            QMessageBox.information(self, "Import Data", "Import feature will be developed in the next version")
         except Exception as e:
-            self.logger.error(f"خطأ في استيراد البيانات: {e}")
+            self.logger.error(f"Error importing data: {e}")
     
     def export_data(self):
-        """تصدير البيانات"""
+        """Export data"""
         try:
-            QMessageBox.information(self, "تصدير البيانات", "سيتم تطوير ميزة التصدير في النسخة القادمة")
+            QMessageBox.information(self, "Export Data", "Export feature will be developed in the next version")
         except Exception as e:
-            self.logger.error(f"خطأ في تصدير البيانات: {e}")
+            self.logger.error(f"Error exporting data: {e}")
     
     def toggle_fullscreen(self):
-        """تبديل وضع ملء الشاشة"""
+        """Toggle fullscreen mode"""
         if self.isFullScreen():
             self.showNormal()
-            self.status_label.setText("🖥️ الخروج من وضع ملء الشاشة")
+            self.status_label.setText("🖥️ Exited fullscreen mode")
         else:
             self.showFullScreen()
-            self.status_label.setText("🖥️ دخول إلى وضع ملء الشاشة")
+            self.status_label.setText("🖥️ Entered fullscreen mode")
     
     def show_about(self):
-        """عرض معلومات عن البرنامج"""
+        """Show about information"""
         about_text = f"""
         <h2>{APP_CONFIG['name']}</h2>
-        <p><b>الإصدار:</b> {APP_CONFIG['version']}</p>
-        <p><b>الشركة:</b> {APP_CONFIG['company']}</p>
-        <p><b>الوصف:</b> {APP_CONFIG['description']}</p>
-        <p><b>حقوق النشر:</b> {APP_CONFIG['copyright']}</p>
+        <p><b>Version:</b> {APP_CONFIG['version']}</p>
+        <p><b>Company:</b> {APP_CONFIG['company']}</p>
+        <p><b>Description:</b> {APP_CONFIG['description']}</p>
+        <p><b>Copyright:</b> {APP_CONFIG['copyright']}</p>
         <hr>
-        <p>نظام متكامل للتنبؤ بفشل المضخات النفطية باستخدام الذكاء الاصطناعي.</p>
-        <p>تم تطويره بلغة Python مع واجهة Qt الحديثة.</p>
+        <p>Integrated system for predicting pump failure using AI.</p>
+        <p>Developed in Python with modern Qt interface.</p>
         """
         
-        QMessageBox.about(self, "عن البرنامج", about_text)
+        QMessageBox.about(self, "About", about_text)
     
     def show_documentation(self):
-        """عرض الوثائق"""
-        QMessageBox.information(self, "الوثائق", "سيتم توفير الوثائق في النسخة القادمة")
+        """Show documentation"""
+        QMessageBox.information(self, "Documentation", "Documentation will be provided in the next version")
     
     def new_project(self):
-        """إنشاء مشروع جديد"""
-        reply = QMessageBox.question(self, "مشروع جديد", 
-                                   "هل تريد إنشاء مشروع جديد؟\nسيتم فقدان أي بيانات غير محفوظة.",
+        """Create new project"""
+        reply = QMessageBox.question(self, "New Project", 
+                                   "Create new project?\nAny unsaved data will be lost.",
                                    QMessageBox.StandardButton.Yes | 
                                    QMessageBox.StandardButton.No)
         
         if reply == QMessageBox.StandardButton.Yes:
-            self.status_label.setText("🆕 تم إنشاء مشروع جديد")
-            # مسح جميع ال cache
+            self.status_label.setText("🆕 New project created")
+            # Clear all cache
             self.clear_cache()
-            QTimer.singleShot(2000, lambda: self.status_label.setText("✅ جاهز"))
+            QTimer.singleShot(2000, lambda: self.status_label.setText("✅ Ready"))
     
     def save_data(self):
-        """حفظ البيانات"""
-        self.status_label.setText("💾 جاري حفظ البيانات...")
-        # محاكاة عملية الحفظ
-        QTimer.singleShot(1500, lambda: self.status_label.setText("✅ تم حفظ البيانات"))
+        """Save data"""
+        self.status_label.setText("💾 Saving data...")
+        # Simulate save process
+        QTimer.singleShot(1500, lambda: self.status_label.setText("✅ Data saved"))
     
     def refresh_data(self):
-        """تحديث البيانات يدوياً"""
-        self.status_label.setText("🔄 جاري تحديث البيانات...")
-        # مسح cache وإعادة تحميل البيانات
+        """Manual data refresh"""
+        self.status_label.setText("🔄 Refreshing data...")
         self.clear_cache()
-        self.auto_update()
+        # Request background update
+        self.start_background_update()
+        # Light updates
         self.slow_update()
-        QTimer.singleShot(1000, lambda: self.status_label.setText("✅ تم تحديث البيانات"))
+        QTimer.singleShot(1000, lambda: self.status_label.setText("✅ Data refreshed"))
+    
+    def apply_window_size(self, width: int, height: int):
+        """Apply window size ensuring limits from config"""
+        try:
+            win_conf = UI_CONFIG.get('window', {})
+            min_w, min_h = win_conf.get('min_size', (640, 480))
+            max_w, max_h = win_conf.get('max_size', (3840, 2160))
+            w = max(min_w, min(width, max_w))
+            h = max(min_h, min(height, max_h))
+            self.resize(w, h)
+            if hasattr(self, 'status_label'):
+                self.status_label.setText(f"Window Size: {w}×{h}")
+        except Exception as e:
+            self.logger.error(f"Error applying window size: {e}")
+    
+    def set_window_size_preset(self, preset_name: str):
+        """Set window size based on preset name"""
+        try:
+            presets = UI_CONFIG.get('window', {}).get('presets', {})
+            if preset_name in presets:
+                w, h = presets[preset_name]
+                self.apply_window_size(int(w), int(h))
+            else:
+                self.logger.warning(f"Unknown window size preset: {preset_name}")
+        except Exception as e:
+            self.logger.error(f"Error applying window size preset: {e}")
+    
+    def show_custom_size_dialog(self):
+        """Show custom size dialog"""
+        dlg = CustomSizeDialog(self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            w, h = dlg.get_size()
+            self.apply_window_size(w, h)
     
     def closeEvent(self, event):
-        """معالجة حدث إغلاق التطبيق"""
-        reply = QMessageBox.question(self, "تأكيد الخروج",
-                                   "هل أنت متأكد من أنك تريد إغلاق التطبيق؟",
+        """Handle application close event"""
+        reply = QMessageBox.question(self, "Confirm Exit",
+                                   "Are you sure you want to close the application?",
                                    QMessageBox.StandardButton.Yes | 
                                    QMessageBox.StandardButton.No)
         
         if reply == QMessageBox.StandardButton.Yes:
-            self.logger.info("تم إغلاق تطبيق iPump")
-            # حفظ الإعدادات وإغلاق الموارد
+            self.logger.info("iPump application closed")
+            # Save settings and close resources
             self.update_timer.stop()
             self.slow_update_timer.stop()
             self.time_timer.stop()
@@ -967,64 +1087,64 @@ class MainWindow(QMainWindow):
 class AddPumpDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("إضافة مضخة جديدة")
+        self.setWindowTitle("Add New Pump")
         self.setModal(True)
         self.setMinimumWidth(500)
         self.setup_ui()
         
     def setup_ui(self):
-        """تهيئة واجهة إضافة مضخة"""
+        """Initialize add pump interface"""
         layout = QVBoxLayout(self)
         
-        # نموذج إدخال البيانات
+        # Data entry form
         form_layout = QFormLayout()
         
-        # حقل اسم المضخة
+        # Pump name field
         self.pump_name = QLineEdit()
-        self.pump_name.setPlaceholderText("أدخل اسم المضخة (مطلوب)")
+        self.pump_name.setPlaceholderText("Enter pump name (required)")
         self.pump_name.setStyleSheet("padding: 8px; border-radius: 4px;")
-        form_layout.addRow("اسم المضخة:*", self.pump_name)
+        form_layout.addRow("Pump Name:*", self.pump_name)
         
-        # حقل الموقع
+        # Location field
         self.pump_location = QLineEdit()
-        self.pump_location.setPlaceholderText("أدخل موقع المضخة (مطلوب)")
+        self.pump_location.setPlaceholderText("Enter pump location (required)")
         self.pump_location.setStyleSheet("padding: 8px; border-radius: 4px;")
-        form_layout.addRow("الموقع:*", self.pump_location)
+        form_layout.addRow("Location:*", self.pump_location)
         
-        # حقل النوع
+        # Type field
         self.pump_type = QComboBox()
-        self.pump_type.addItems(["طرد مركزي", "مكبسية", "تغذية", "خدمة مساعدة", "نقل", "مصفاة"])
+        self.pump_type.addItems(["Centrifugal", "Piston", "Feed", "Auxiliary", "Transfer", "Filter"])
         self.pump_type.setStyleSheet("padding: 8px; border-radius: 4px;")
-        form_layout.addRow("نوع المضخة:*", self.pump_type)
+        form_layout.addRow("Pump Type:*", self.pump_type)
         
-        # حقل تاريخ التركيب
+        # Installation date field
         self.installation_date = QDateEdit()
         self.installation_date.setDate(QDate.currentDate())
         self.installation_date.setCalendarPopup(True)
         self.installation_date.setStyleSheet("padding: 8px; border-radius: 4px;")
-        form_layout.addRow("تاريخ التركيب:*", self.installation_date)
+        form_layout.addRow("Installation Date:*", self.installation_date)
         
-        # حقل الحالة
+        # Status field
         self.pump_status = QComboBox()
-        self.pump_status.addItems(["تعمل", "صيانة", "متوقفة"])
+        self.pump_status.addItems(["Operational", "Maintenance", "Stopped"])
         self.pump_status.setStyleSheet("padding: 8px; border-radius: 4px;")
-        form_layout.addRow("الحالة:*", self.pump_status)
+        form_layout.addRow("Status:*", self.pump_status)
         
-        # حقل معلومات إضافية
+        # Additional info field
         self.pump_notes = QTextEdit()
         self.pump_notes.setMaximumHeight(100)
-        self.pump_notes.setPlaceholderText("ملاحظات إضافية عن المضخة...")
+        self.pump_notes.setPlaceholderText("Additional notes about the pump...")
         self.pump_notes.setStyleSheet("padding: 8px; border-radius: 4px;")
-        form_layout.addRow("ملاحظات:", self.pump_notes)
+        form_layout.addRow("Notes:", self.pump_notes)
         
         layout.addLayout(form_layout)
         
-        # معلومات إضافية
-        info_label = QLabel("💡 الحقول marked with * are required")
+        # Additional information
+        info_label = QLabel("💡 Fields marked with * are required")
         info_label.setStyleSheet("color: #94a3b8; font-size: 12px; padding: 10px;")
         layout.addWidget(info_label)
         
-        # أزرار الحفظ والإلغاء
+        # Save and cancel buttons
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
             QDialogButtonBox.StandardButton.Cancel
@@ -1034,11 +1154,11 @@ class AddPumpDialog(QDialog):
         layout.addWidget(button_box)
         
     def get_pump_data(self):
-        """الحصول على بيانات المضخة المدخلة"""
+        """Get entered pump data"""
         status_map = {
-            "تعمل": "operational",
-            "صيانة": "maintenance", 
-            "متوقفة": "stopped"
+            "Operational": "operational",
+            "Maintenance": "maintenance", 
+            "Stopped": "stopped"
         }
         
         return {
@@ -1051,13 +1171,13 @@ class AddPumpDialog(QDialog):
         }
     
     def accept(self):
-        """عند النقر على موافق"""
+        """When OK is clicked"""
         if not self.pump_name.text().strip():
-            QMessageBox.warning(self, "تحذير", "يرجى إدخال اسم المضخة")
+            QMessageBox.warning(self, "Warning", "Please enter pump name")
             return
         
         if not self.pump_location.text().strip():
-            QMessageBox.warning(self, "تحذير", "يرجى إدخال موقع المضخة")
+            QMessageBox.warning(self, "Warning", "Please enter pump location")
             return
         
         super().accept()
@@ -1065,47 +1185,47 @@ class AddPumpDialog(QDialog):
 class LinkSensorsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("ربط الحساسات بالمضخات")
+        self.setWindowTitle("Link Sensors to Pumps")
         self.setModal(True)
         self.setMinimumWidth(600)
         self.setup_ui()
         
     def setup_ui(self):
-        """تهيئة واجهة ربط الحساسات"""
+        """Initialize link sensors interface"""
         layout = QVBoxLayout(self)
         
-        # قسم اختيار المضخة
-        pump_group = QGroupBox("اختيار المضخة")
+        # Pump selection section
+        pump_group = QGroupBox("Select Pump")
         pump_layout = QFormLayout(pump_group)
         
         self.pump_selector = QComboBox()
-        # تحميل المضخات من قاعدة البيانات
+        # Load pumps from database
         pumps = db_manager.get_pumps()
         for _, pump in pumps.iterrows():
             self.pump_selector.addItem(f"{pump['name']} - {pump['location']}", pump['id'])
         
-        pump_layout.addRow("المضخة:", self.pump_selector)
+        pump_layout.addRow("Pump:", self.pump_selector)
         layout.addWidget(pump_group)
         
-        # قسم الحساسات المتاحة
-        sensors_group = QGroupBox("الحساسات المتاحة للربط")
+        # Available sensors section
+        sensors_group = QGroupBox("Available Sensors for Linking")
         sensors_layout = QVBoxLayout(sensors_group)
         
-        # قائمة الحساسات
+        # Sensors list
         self.sensors_list = QListWidget()
         
-        # إضافة أنواع الحساسات المتاحة
+        # Add available sensor types
         available_sensors = [
-            "حساس الاهتزاز X - قياس الاهتزاز في المحور X",
-            "حساس الاهتزاز Y - قياس الاهتزاز في المحور Y", 
-            "حساس الاهتزاز Z - قياس الاهتزاز في المحور Z",
-            "حساس درجة الحرارة - قياس درجة حرارة المضخة",
-            "حساس الضغط - قياس ضغط التشغيل",
-            "حساس التدفق - قياس معدل التدفق",
-            "حساس مستوى الزيت - قياس مستوى زيت التشحيم",
-            "حساس جودة الزيت - قياس جودة زيت التشحيم",
-            "حساس استهلاك الطاقة - قياس استهلاك الطاقة",
-            "حساس حرارة المحامل - قياس درجة حرارة المحامل"
+            "Vibration Sensor X - Measure vibration on X axis",
+            "Vibration Sensor Y - Measure vibration on Y axis", 
+            "Vibration Sensor Z - Measure vibration on Z axis",
+            "Temperature Sensor - Measure pump temperature",
+            "Pressure Sensor - Measure operating pressure",
+            "Flow Sensor - Measure flow rate",
+            "Oil Level Sensor - Measure lubrication oil level",
+            "Oil Quality Sensor - Measure oil quality",
+            "Power Consumption Sensor - Measure power consumption",
+            "Bearing Temperature Sensor - Measure bearing temperature"
         ]
         
         for sensor in available_sensors:
@@ -1116,26 +1236,26 @@ class LinkSensorsDialog(QDialog):
         sensors_layout.addWidget(self.sensors_list)
         layout.addWidget(sensors_group)
         
-        # أزرار التحكم
+        # Control buttons
         button_layout = QHBoxLayout()
         
-        self.select_all_btn = QPushButton("تحديد الكل")
+        self.select_all_btn = QPushButton("Select All")
         self.select_all_btn.clicked.connect(self.select_all_sensors)
         button_layout.addWidget(self.select_all_btn)
         
-        self.deselect_all_btn = QPushButton("إلغاء التحديد")
+        self.deselect_all_btn = QPushButton("Deselect All")
         self.deselect_all_btn.clicked.connect(self.deselect_all_sensors)
         button_layout.addWidget(self.deselect_all_btn)
         
         button_layout.addStretch()
         layout.addLayout(button_layout)
         
-        # معلومات
-        info_label = QLabel("🔍 حدد الحساسات التي تريد ربطها بالمضخة المحددة")
+        # Information
+        info_label = QLabel("🔍 Select sensors you want to link to the selected pump")
         info_label.setStyleSheet("color: #94a3b8; padding: 10px;")
         layout.addWidget(info_label)
         
-        # أزرار الحفظ والإلغاء
+        # Save and cancel buttons
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
             QDialogButtonBox.StandardButton.Cancel
@@ -1145,31 +1265,31 @@ class LinkSensorsDialog(QDialog):
         layout.addWidget(button_box)
         
     def select_all_sensors(self):
-        """تحديد جميع الحساسات"""
+        """Select all sensors"""
         for i in range(self.sensors_list.count()):
             item = self.sensors_list.item(i)
             item.setCheckState(Qt.CheckState.Checked)
     
     def deselect_all_sensors(self):
-        """إلغاء تحديد جميع الحساسات"""
+        """Deselect all sensors"""
         for i in range(self.sensors_list.count()):
             item = self.sensors_list.item(i)
             item.setCheckState(Qt.CheckState.Unchecked)
     
     def get_selected_sensors(self):
-        """الحصول على الحساسات المحددة"""
+        """Get selected sensors"""
         selected_sensors = []
         sensor_type_map = {
-            "حساس الاهتزاز X": "vibration_x",
-            "حساس الاهتزاز Y": "vibration_y",
-            "حساس الاهتزاز Z": "vibration_z",
-            "حساس درجة الحرارة": "temperature",
-            "حساس الضغط": "pressure",
-            "حساس التدفق": "flow_rate",
-            "حساس مستوى الزيت": "oil_level",
-            "حساس جودة الزيت": "oil_quality",
-            "حساس استهلاك الطاقة": "power_consumption",
-            "حساس حرارة المحامل": "bearing_temperature"
+            "Vibration Sensor X": "vibration_x",
+            "Vibration Sensor Y": "vibration_y",
+            "Vibration Sensor Z": "vibration_z",
+            "Temperature Sensor": "temperature",
+            "Pressure Sensor": "pressure",
+            "Flow Sensor": "flow_rate",
+            "Oil Level Sensor": "oil_level",
+            "Oil Quality Sensor": "oil_quality",
+            "Power Consumption Sensor": "power_consumption",
+            "Bearing Temperature Sensor": "bearing_temperature"
         }
         
         for i in range(self.sensors_list.count()):
@@ -1186,37 +1306,63 @@ class LinkSensorsDialog(QDialog):
         return selected_sensors
     
     def accept(self):
-        """عند النقر على موافق"""
+        """When OK is clicked"""
         selected_sensors = self.get_selected_sensors()
         if not selected_sensors:
-            QMessageBox.warning(self, "تحذير", "يرجى تحديد حساس واحد على الأقل")
+            QMessageBox.warning(self, "Warning", "Please select at least one sensor")
             return
         
         pump_id = self.pump_selector.currentData()
         pump_name = self.pump_selector.currentText().split(' - ')[0]
         
-        # عرض ملخص الربط
+        # Show linking summary
         summary = f"""
-        ملخص عملية الربط:
+        Linking Summary:
         
-        المضخة: {pump_name}
-        عدد الحساسات المحددة: {len(selected_sensors)}
+        Pump: {pump_name}
+        Selected Sensors: {len(selected_sensors)}
         
-        الحساسات المحددة:
+        Selected Sensors:
         {chr(10).join(['• ' + sensor['sensor_type'] for sensor in selected_sensors])}
         """
         
         reply = QMessageBox.question(
             self, 
-            "تأكيد الربط", 
-            summary + "\nهل تريد متابعة عملية الربط؟",
+            "Confirm Linking", 
+            summary + "\nDo you want to proceed with linking?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
         if reply == QMessageBox.StandardButton.Yes:
-            # تنفيذ عملية الربط الفعلية
+            # Execute actual linking process
             success = db_manager.link_sensors_to_pump(pump_id, selected_sensors)
             if success:
                 super().accept()
             else:
-                QMessageBox.warning(self, "خطأ", "فشل في ربط الحساسات. قد تكون بعض الحساسات مربوطة مسبقاً.")
+                QMessageBox.warning(self, "Error", "Failed to link sensors. Some sensors may already be linked.")
+
+class CustomSizeDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Custom Window Size")
+        self.setModal(True)
+        layout = QFormLayout(self)
+    
+        self.width_spin = QSpinBox()
+        self.width_spin.setRange(320, 7680)
+        self.width_spin.setValue(UI_CONFIG.get('window', {}).get('default_size', (1200,800))[0])
+    
+        self.height_spin = QSpinBox()
+        self.height_spin.setRange(240, 4320)
+        self.height_spin.setValue(UI_CONFIG.get('window', {}).get('default_size', (1200,800))[1])
+    
+        layout.addRow("Width (px):", self.width_spin)
+        layout.addRow("Height (px):", self.height_spin)
+    
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addRow(button_box)
+    
+    def get_size(self):
+        return int(self.width_spin.value()), int(self.height_spin.value())

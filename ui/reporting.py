@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
                            QTabWidget, QFileDialog, QMessageBox, QTableWidget,
                            QTableWidgetItem, QHeaderView)
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, QDate, QTimer
+from PyQt6.QtCore import Qt, QDate, QTimer, QThread
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -41,9 +41,38 @@ try:
 except ImportError:
     REPORTS_DIR = "reports"
 
+try:
+    from ui.workers import BackgroundWorker
+except ImportError:
+    class BackgroundWorkerSignals:
+        result = None
+        error = None
+        finished = None
+    
+    class BackgroundWorker:
+        def __init__(self, func, *args, **kwargs):
+            self.func = func
+            self.args = args
+            self.kwargs = kwargs
+            self.signals = BackgroundWorkerSignals()
+        
+        def run(self):
+            try:
+                result = self.func(*self.args, **self.kwargs)
+                if self.signals.result:
+                    self.signals.result.emit(result)
+            except Exception as e:
+                if self.signals.error:
+                    self.signals.error.emit(str(e))
+            finally:
+                if self.signals.finished:
+                    self.signals.finished.emit()
+
 class ReportingTab(QWidget):
     def __init__(self):
         super().__init__()
+        self._report_thread = None
+        self._report_worker = None
         self.setup_ui()
         self.load_initial_data()
         
@@ -152,40 +181,59 @@ class ReportingTab(QWidget):
         except Exception as e:
             print(f"خطأ في تحميل البيانات الأولية: {e}")
     
+    def _generate_report_task(self, report_type, report_date):
+        """دالة ثقيلة تعمل في الخلفية وتُرجع نص التقرير"""
+        if report_type == "تقرير الأداء اليومي":
+            return self.generate_daily_performance_report(report_date)
+        elif report_type == "تقرير الصيانة الشهري":
+            return self.generate_maintenance_report(report_date)
+        elif report_type == "تقرير التنبؤ بالفشل":
+            return self.generate_failure_prediction_report(report_date)
+        elif report_type == "تقرير التحليلات الإحصائية":
+            return self.generate_statistical_report(report_date)
+        elif report_type == "تقرير التكاليف":
+            return self.generate_cost_report(report_date)
+        return "<html><body><p>نوع تقرير غير معروف</p></body></html>"
+
     def generate_report(self):
-        """إنشاء التقرير"""
+        """إنشاء التقرير في خلفية لمنع تجميد الواجهة"""
         try:
+            # منع إطلاق أكثر من عملية توليد تقرير واحدة
+            if self._report_thread is not None and self._report_thread.isRunning():
+                return
+
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
-            
+
             report_type = self.report_type.currentText()
             report_date = self.report_date.date().toPyDate()
-            
+
+            thread = QThread()
+            worker = BackgroundWorker(self._generate_report_task, report_type, report_date)
+            worker.moveToThread(thread)
+            thread.started.connect(worker.run)
+
+            def on_result(report_content):
+                self.report_display.setHtml(report_content)
+                self.progress_bar.setValue(100)
+
+            worker.signals.result.connect(on_result)
+            worker.signals.error.connect(lambda e: QMessageBox.warning(self, "خطأ", f"خطأ في توليد التقرير: {e}"))
+            worker.signals.finished.connect(lambda: self.progress_bar.setVisible(False))
+            worker.signals.finished.connect(thread.quit)
+            worker.signals.finished.connect(worker.deleteLater)
+            thread.finished.connect(thread.deleteLater)
+
+            self._report_thread = thread
+            self._report_worker = worker
+
+            thread.start()
+            # تقدم مرحلي إن أردنا: اجعل شريط التقدم متحركًا إلى أن يتلقى result
             self.progress_bar.setValue(30)
-            
-            if report_type == "تقرير الأداء اليومي":
-                report_content = self.generate_daily_performance_report(report_date)
-            elif report_type == "تقرير الصيانة الشهري":
-                report_content = self.generate_maintenance_report(report_date)
-            elif report_type == "تقرير التنبؤ بالفشل":
-                report_content = self.generate_failure_prediction_report(report_date)
-            elif report_type == "تقرير التحليلات الإحصائية":
-                report_content = self.generate_statistical_report(report_date)
-            elif report_type == "تقرير التكاليف":
-                report_content = self.generate_cost_report(report_date)
-            else:
-                report_content = "نوع التقرير غير معروف"
-            
-            self.progress_bar.setValue(80)
-            
-            self.report_display.setHtml(report_content)
-            
-            self.progress_bar.setValue(100)
-            QTimer.singleShot(1000, lambda: self.progress_bar.setVisible(False))
-            
+
         except Exception as e:
             self.progress_bar.setVisible(False)
-            QMessageBox.warning(self, "خطأ", f"خطأ في إنشاء التقرير: {str(e)}")
+            QMessageBox.warning(self, "خطأ", f"خطأ بدء توليد التقرير: {e}")
     
     def generate_daily_performance_report(self, date):
         """إنشاء تقرير الأداء اليومي"""
@@ -245,7 +293,7 @@ class ReportingTab(QWidget):
                             <td>{len(pumps_data)}</td>
                             <td>{len(operating_pumps)}</td>
                             <td>{avg_efficiency:.1f}%</td>
-                            <td class='{'alert' if total_alerts > 0 else 'good'}'>{total_alerts}</td>
+                            <td class='{'alert' if total_alerts > 0 else 'good'}>{total_alerts}</td>
                         </tr>
                     </table>
                 </div>
@@ -600,7 +648,7 @@ class ReportingTab(QWidget):
                     <table>
                         <tr>
                             <th>البند</th>
-                            <th>التكلفة (ريال)</th>
+                            <th>اتكلفة (دولار)</th>
                             <th>النسبة</th>
                         </tr>
                         <tr>

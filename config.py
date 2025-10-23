@@ -1,5 +1,5 @@
 """
-إعدادات تطبيق iPump
+iPump Application Settings
 """
 
 import os
@@ -7,18 +7,18 @@ from pathlib import Path
 from datetime import datetime
 from PyQt6.QtCore import QSize
 
-# المسارات
+# Paths
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 MODELS_DIR = BASE_DIR / "models"
 LOGS_DIR = BASE_DIR / "logs"
 REPORTS_DIR = BASE_DIR / "reports"
 
-# إنشاء المجلدات الضرورية
+# Create necessary directories
 for directory in [DATA_DIR, MODELS_DIR, LOGS_DIR, REPORTS_DIR]:
     directory.mkdir(exist_ok=True)
 
-# إعدادات قاعدة البيانات
+# Database Settings
 DATABASE_CONFIG = {
     'host': 'localhost',
     'port': 5432,
@@ -27,7 +27,7 @@ DATABASE_CONFIG = {
     'password': 'ipump_password'
 }
 
-# إعدادات نماذج الذكاء الاصطناعي
+# AI Models Settings
 AI_MODELS_CONFIG = {
     'failure_prediction': {
         'model_path': MODELS_DIR / 'failure_model.pkl',
@@ -37,7 +37,9 @@ AI_MODELS_CONFIG = {
             'power_consumption', 'operating_hours',
             'bearing_temperature', 'oil_level', 'oil_quality'
         ],
-        'threshold': 0.85
+        'threshold': 0.85,
+        # Path to the real training data file (CSV format for example)
+        'training_data_file': DATA_DIR / 'training_data.csv'
     },
     'anomaly_detection': {
         'model_path': MODELS_DIR / 'anomaly_model.pkl',
@@ -45,33 +47,45 @@ AI_MODELS_CONFIG = {
     }
 }
 
-# إعدادات الواجهة
+# UI Settings
 UI_CONFIG = {
     'theme': 'dark',
-    'language': 'ar',
-    'refresh_interval': 5000,  # مللي ثانية
-    'chart_points': 100
+    'language': 'en',  # Changed default language to English
+    'refresh_interval': 5000,  # milliseconds
+    'chart_points': 100,
+    # Window size settings for a real application
+    'window': {
+        'default_size': (1200, 800),   # width, height
+        'presets': {
+            'small': (800, 600),
+            'medium': (1024, 768),
+            'large': (1366, 900),
+            'default': (1200, 800)
+        },
+        'min_size': (640, 480),
+        'max_size': (3840, 2160)
+    }
 }
 
-# إعدادات النظام
+# System Settings
 SYSTEM_CONFIG = {
     'max_log_files': 10,
     'log_level': 'INFO',
-    'backup_interval': 24,  # ساعة
+    'backup_interval': 24,  # hours
     'data_retention_days': 365
 }
 
-# إعدادات المضخات
+# Pump Settings
 PUMP_CONFIG = {
-    'critical_temperature': 85,  # درجة مئوية
-    'max_vibration': 7.5,  # م/ث²
+    'critical_temperature': 85,  # Celsius
+    'max_vibration': 7.5,  # m/s²
     'min_oil_level': 0.2,  # 20%
-    'maintenance_interval': 720  # ساعة
+    'maintenance_interval': 720  # hours
 }
 
 SENSOR_CONFIG = {
-    'default_sampling_rate': 10,  # هرتز
-    'calibration_interval': 90,   # يوم
+    'default_sampling_rate': 10,  # Hz
+    'calibration_interval': 90,   # days
     'sensor_types': [
         'vibration_x', 'vibration_y', 'vibration_z',
         'temperature', 'pressure', 'flow_rate',
@@ -90,9 +104,9 @@ SENSOR_CONFIG = {
 }
 
 APP_CONFIG = {
-    'name': 'iPump - نظام التنبؤ بفشل المضخات النفطية',
+    'name': 'iPump - Intelligent Pump Failure Prediction System',
     'version': '1.0.0',
-    'description': 'نظام متكامل للتنبؤ بفشل المضخات النفطية باستخدام الذكاء الاصطناعي',
-    'company': 'شركة الهندسة المتطورة',
-    'copyright': f'© {datetime.now().year} جميع الحقوق محفوظة'
+    'description': 'An integrated system for predicting pump failure using AI.',
+    'company': 'Advanced Engineering Co.',
+    'copyright': f'© {datetime.now().year} All Rights Reserved'
 }

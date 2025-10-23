@@ -1,5 +1,5 @@
 """
-نماذج الذكاء الاصطناعي للتنبؤ بفشل المضخات
+AI models for iPump
 """
 
 import numpy as np
@@ -22,18 +22,18 @@ from contextlib import contextmanager
 
 from config import AI_MODELS_CONFIG, PUMP_CONFIG
 
-# إعداد التحذيرات
+# Setup warnings
 warnings.filterwarnings('ignore')
 
 class ModelManager:
-    """مدير النماذج للتحكم في عمليات التدريب والتنبؤ"""
+    """Model manager for training and prediction operations"""
     
     def __init__(self):
         self.logger = self._setup_logger()
         self.model_history = []
     
     def _setup_logger(self) -> logging.Logger:
-        """إعداد نظام التسجيل"""
+        """Setup logging system"""
         logger = logging.getLogger(__name__)
         if not logger.handlers:
             handler = logging.StreamHandler()
@@ -46,7 +46,7 @@ class ModelManager:
         return logger
     
     def save_model_metadata(self, model, accuracy: float, features: List[str]):
-        """حفظ بيانات وصفية عن النموذج"""
+        """Save model metadata"""
         metadata = {
             'timestamp': datetime.now().isoformat(),
             'accuracy': accuracy,
@@ -56,34 +56,34 @@ class ModelManager:
         }
         self.model_history.append(metadata)
         
-        # حفظ في ملف
+        # Save to file
         metadata_path = Path('models/model_metadata.json')
         metadata_path.parent.mkdir(exist_ok=True)
         with open(metadata_path, 'w', encoding='utf-8') as f:
             json.dump(self.model_history, f, indent=4, ensure_ascii=False)
 
 class DataPreprocessor:
-    """معالج البيانات للتنظيف والتحضير"""
+    """Data processor for cleaning and preparation"""
     
     def __init__(self):
-        self.scaler = RobustScaler()  # أكثر مقاومة للقيم الشاذة
+        self.scaler = RobustScaler()  # More robust to outliers
         self.imputer = SimpleImputer(strategy='median')
         self.feature_names = []
     
     def preprocess_features(self, df: pd.DataFrame, features: List[str], fit: bool = True) -> np.ndarray:
-        """معالجة الميزات"""
+        """Process features"""
         try:
-            # اختيار الميزات المطلوبة فقط
+            # Select only required features
             X = df[features].copy()
             self.feature_names = features
             
-            # معالجة القيم المفقودة
+            # Handle missing values
             if fit:
                 X_imputed = self.imputer.fit_transform(X)
             else:
                 X_imputed = self.imputer.transform(X)
             
-            # تطبيع البيانات
+            # Normalize data
             if fit:
                 X_scaled = self.scaler.fit_transform(X_imputed)
             else:
@@ -92,21 +92,21 @@ class DataPreprocessor:
             return X_scaled
             
         except Exception as e:
-            raise Exception(f"خطأ في معالجة البيانات: {e}")
+            raise Exception(f"Error in data processing: {e}")
     
     def get_feature_importance(self, model) -> Dict[str, float]:
-        """الحصول على أهمية الميزات"""
+        """Get feature importance"""
         try:
             if hasattr(model, 'feature_importances_'):
                 importance_dict = dict(zip(self.feature_names, model.feature_importances_))
                 return dict(sorted(importance_dict.items(), key=lambda x: x[1], reverse=True))
             return {}
         except Exception as e:
-            logging.warning(f"لا يمكن الحصول على أهمية الميزات: {e}")
+            logging.warning(f"Cannot get feature importance: {e}")
             return {}
 
 class AdvancedFailurePredictor:
-    """نموذج متقدم للتنبؤ بفشل المضخات"""
+    """Advanced pump failure prediction model"""
     
     def __init__(self):
         self.model_manager = ModelManager()
@@ -119,7 +119,7 @@ class AdvancedFailurePredictor:
         self.load_model()
     
     def load_model(self):
-        """تحميل النموذج المدرب مسبقاً"""
+        """Load pre-trained model"""
         try:
             model_path = AI_MODELS_CONFIG['failure_prediction']['model_path']
             preprocessor_path = model_path.parent / 'preprocessor.joblib'
@@ -128,9 +128,9 @@ class AdvancedFailurePredictor:
                 self.model = joblib.load(model_path)
                 self.preprocessor = joblib.load(preprocessor_path)
                 self.is_trained = True
-                self.model_manager.logger.info("✅ تم تحميل النموذج المدرب بنجاح")
+                self.model_manager.logger.info("✅ Loaded pre-trained model successfully")
                 
-                # تحميل دقة النموذج من البيانات الوصفية
+                # Load model accuracy from metadata
                 metadata_path = Path('models/model_metadata.json')
                 if metadata_path.exists():
                     with open(metadata_path, 'r', encoding='utf-8') as f:
@@ -141,11 +141,11 @@ class AdvancedFailurePredictor:
                 self._initialize_new_model()
                 
         except Exception as e:
-            self.model_manager.logger.error(f"❌ خطأ في تحميل النموذج: {e}")
+            self.model_manager.logger.error(f"❌ Error loading model: {e}")
             self._initialize_new_model()
     
     def _initialize_new_model(self):
-        """تهيئة نموذج جديد"""
+        """Initialize new model"""
         self.model = xgb.XGBClassifier(
             n_estimators=200,
             max_depth=8,
@@ -155,136 +155,34 @@ class AdvancedFailurePredictor:
             random_state=42,
             eval_metric='logloss'
         )
-        self.model_manager.logger.info("🆕 تم إنشاء نموذج جديد")
+        self.model_manager.logger.info("🆕 Created new model")
     
-    def generate_training_data(self, num_samples: int = 15000) -> pd.DataFrame:
-        """توليد بيانات تدريبية محاكاة أكثر واقعية"""
-        np.random.seed(42)
-        
-        # بيانات أكثر واقعية مع علاقات بين المتغيرات
-        operating_hours = np.random.exponential(2000, num_samples)
-        
-        data = {
-            'vibration_x': self._generate_vibration_data(operating_hours, num_samples, base=2.0),
-            'vibration_y': self._generate_vibration_data(operating_hours, num_samples, base=2.2),
-            'vibration_z': self._generate_vibration_data(operating_hours, num_samples, base=1.8),
-            'temperature': self._generate_temperature_data(operating_hours, num_samples),
-            'pressure': self._generate_pressure_data(operating_hours, num_samples),
-            'flow_rate': self._generate_flow_rate_data(operating_hours, num_samples),
-            'power_consumption': self._generate_power_data(operating_hours, num_samples),
-            'bearing_temperature': self._generate_bearing_temperature(operating_hours, num_samples),
-            'oil_level': self._generate_oil_level_data(operating_hours, num_samples),
-            'oil_quality': self._generate_oil_quality_data(operating_hours, num_samples),
-            'operating_hours': operating_hours,
-            'maintenance_due': np.random.choice([0, 1], num_samples, p=[0.7, 0.3])
-        }
-        
-        df = pd.DataFrame(data)
-        
-        # إنشاء المتغير المستهدف (الفشل) مع منطق أكثر تعقيداً
-        df['failure'] = self._calculate_failure_risk(df)
-        
-        return df
-    
-    def _generate_vibration_data(self, operating_hours: np.ndarray, num_samples: int, base: float) -> np.ndarray:
-        """توليد بيانات اهتزاز واقعية"""
-        vibration = np.zeros(num_samples)
-        for i, hours in enumerate(operating_hours):
-            if hours > 4000:  # مضخة قديمة
-                vibration[i] = np.random.normal(base * 2.5, 1.0)
-            elif hours > 2000:  # مضخة متوسطة العمر
-                vibration[i] = np.random.normal(base * 1.5, 0.7)
-            else:  # مضخة جديدة
-                vibration[i] = np.random.normal(base, 0.3)
-        return np.clip(vibration, 0, 10)
-    
-    def _generate_temperature_data(self, operating_hours: np.ndarray, num_samples: int) -> np.ndarray:
-        """توليد بيانات درجة حرارة واقعية"""
-        temperature = np.zeros(num_samples)
-        for i, hours in enumerate(operating_hours):
-            base_temp = 60 + (hours / 5000) * 30  # زيادة الحرارة مع العمر
-            temperature[i] = np.random.normal(base_temp, 8)
-        return np.clip(temperature, 40, 120)
-    
-    def _generate_pressure_data(self, operating_hours: np.ndarray, num_samples: int) -> np.ndarray:
-        """توليد بيانات ضغط واقعية"""
-        pressure = np.zeros(num_samples)
-        for i, hours in enumerate(operating_hours):
-            if hours > 3000:
-                pressure[i] = np.random.normal(130, 35)  # ضغط منخفض للمضخات القديمة
-            else:
-                pressure[i] = np.random.normal(150, 20)
-        return np.clip(pressure, 50, 250)
-    
-    def _generate_flow_rate_data(self, operating_hours: np.ndarray, num_samples: int) -> np.ndarray:
-        """توليد بيانات معدل تدفق واقعية"""
-        flow_rate = np.zeros(num_samples)
-        for i, hours in enumerate(operating_hours):
-            if hours > 3500:
-                flow_rate[i] = np.random.normal(70, 30)  # تدفق أقل للمضخات القديمة
-            else:
-                flow_rate[i] = np.random.normal(100, 15)
-        return np.clip(flow_rate, 20, 150)
-    
-    def _generate_power_data(self, operating_hours: np.ndarray, num_samples: int) -> np.ndarray:
-        """توليد بيانات استهلاك طاقة واقعية"""
-        power = np.zeros(num_samples)
-        for i, hours in enumerate(operating_hours):
-            base_power = 70 + (hours / 5000) * 25  # زيادة استهلاك الطاقة مع العمر
-            power[i] = np.random.normal(base_power, 12)
-        return np.clip(power, 50, 150)
-    
-    def _generate_bearing_temperature(self, operating_hours: np.ndarray, num_samples: int) -> np.ndarray:
-        """توليد بيانات حرارة المحامل واقعية"""
-        bearing_temp = np.zeros(num_samples)
-        for i, hours in enumerate(operating_hours):
-            base_temp = 65 + (hours / 5000) * 25  # زيادة حرارة المحامل مع العمر
-            bearing_temp[i] = np.random.normal(base_temp, 10)
-        return np.clip(bearing_temp, 50, 110)
-    
-    def _generate_oil_level_data(self, operating_hours: np.ndarray, num_samples: int) -> np.ndarray:
-        """توليد بيانات مستوى الزيت واقعية"""
-        oil_level = np.zeros(num_samples)
-        for i, hours in enumerate(operating_hours):
-            if hours > 2500:
-                oil_level[i] = np.random.uniform(0.2, 0.7)  # مستوى زيت منخفض للمضخات القديمة
-            else:
-                oil_level[i] = np.random.uniform(0.6, 1.0)
-        return np.clip(oil_level, 0.1, 1.0)
-    
-    def _generate_oil_quality_data(self, operating_hours: np.ndarray, num_samples: int) -> np.ndarray:
-        """توليد بيانات جودة الزيت واقعية"""
-        oil_quality = np.zeros(num_samples)
-        for i, hours in enumerate(operating_hours):
-            base_quality = 0.9 - (hours / 10000)  # تدهور جودة الزيت مع الوقت
-            oil_quality[i] = np.random.uniform(max(0.1, base_quality - 0.2), base_quality)
-        return np.clip(oil_quality, 0.1, 1.0)
-    
-    def _calculate_failure_risk(self, df: pd.DataFrame) -> np.ndarray:
-        """حساب خطر الفشل بناءً على متعددة معايير"""
-        risk_score = (
-            (df['vibration_x'] > 4.0).astype(int) * 0.15 +
-            (df['vibration_y'] > 4.0).astype(int) * 0.15 +
-            (df['vibration_z'] > 4.0).astype(int) * 0.15 +
-            (df['temperature'] > 80).astype(int) * 0.2 +
-            (df['oil_level'] < 0.3).astype(int) * 0.15 +
-            (df['oil_quality'] < 0.4).astype(int) * 0.1 +
-            (df['bearing_temperature'] > 85).astype(int) * 0.1
-        )
-        
-        # تحويل درجة الخطر إلى توقع فشل (0 أو 1)
-        failure = (risk_score > 0.3).astype(int)
-        return failure
-    
-    def train_model(self, use_cross_validation: bool = True) -> Dict[str, Any]:
-        """تدريب النموذج مع خيارات متقدمة"""
+    def load_training_data(self) -> pd.DataFrame:
+        """
+        Load real training data from the specified CSV file.
+        This function replaces the dummy data generation.
+        """
+        training_file = AI_MODELS_CONFIG['failure_prediction'].get('training_data_file')
         try:
-            self.model_manager.logger.info("🎓 بدء تدريب النموذج...")
+            df = pd.read_csv(training_file)
+            self.model_manager.logger.info(f"✅ Loaded training data from {training_file}")
+            return df
+        except Exception as e:
+            self.model_manager.logger.error(f"❌ Error loading training data from {training_file}: {e}")
+            return pd.DataFrame()  # Return empty DataFrame if there's an error
+
+    def train_model(self, use_cross_validation: bool = True) -> Dict[str, Any]:
+        """Train model with advanced options"""
+        try:
+            self.model_manager.logger.info("🎓 Starting model training...")
             
-            # توليد بيانات التدريب
-            training_data = self.generate_training_data()
+            # Load training data
+            training_data = self.load_training_data()
+            if training_data.empty:
+                self.model_manager.logger.error("No training data available. Please upload a valid training data file.")
+                return {}
             
-            # تقسيم البيانات
+            # Split data
             features = AI_MODELS_CONFIG['failure_prediction']['features']
             X = training_data[features]
             y = training_data['failure']
@@ -293,48 +191,48 @@ class AdvancedFailurePredictor:
                 X, y, test_size=0.2, random_state=42, stratify=y
             )
             
-            # معالجة البيانات
+            # Process data
             X_train_processed = self.preprocessor.preprocess_features(X_train, features, fit=True)
             X_test_processed = self.preprocessor.preprocess_features(X_test, features, fit=False)
             
             if use_cross_validation:
-                # التحقق المتبادل
+                # Cross-validation
                 cv_scores = cross_val_score(self.model, X_train_processed, y_train, cv=5, scoring='accuracy')
-                self.model_manager.logger.info(f"📊 دقة التحقق المتبادل: {cv_scores.mean():.4f} (±{cv_scores.std():.4f})")
+                self.model_manager.logger.info(f"📊 Cross-validation accuracy: {cv_scores.mean():.4f} (±{cv_scores.std():.4f})")
             
-            # تدريب النموذج
+            # Train model
             self.model.fit(X_train_processed, y_train)
             
-            # تقييم النموذج
+            # Evaluate model
             y_pred = self.model.predict(X_test_processed)
             y_pred_proba = self.model.predict_proba(X_test_processed)[:, 1]
             
-            # حساب مقاييس متعددة
+            # Calculate multiple metrics
             self.accuracy = accuracy_score(y_test, y_pred)
             precision = precision_score(y_test, y_pred)
             recall = recall_score(y_test, y_pred)
             f1 = f1_score(y_test, y_pred)
             
-            self.model_manager.logger.info(f"✅ دقة النموذج: {self.accuracy:.4f}")
-            self.model_manager.logger.info(f"📈 الدقة (Precision): {precision:.4f}")
-            self.model_manager.logger.info(f"📊 الاستدعاء (Recall): {recall:.4f}")
+            self.model_manager.logger.info(f"✅ Model accuracy: {self.accuracy:.4f}")
+            self.model_manager.logger.info(f"📈 Precision: {precision:.4f}")
+            self.model_manager.logger.info(f"📊 Recall: {recall:.4f}")
             self.model_manager.logger.info(f"🎯 F1-Score: {f1:.4f}")
             
-            # الحصول على أهمية الميزات
+            # Get feature importance
             self.feature_importance = self.preprocessor.get_feature_importance(self.model)
             
-            # حفظ النموذج والمعالج
+            # Save model and preprocessor
             model_path = AI_MODELS_CONFIG['failure_prediction']['model_path']
             model_path.parent.mkdir(parents=True, exist_ok=True)
             
             joblib.dump(self.model, model_path)
             joblib.dump(self.preprocessor, model_path.parent / 'preprocessor.joblib')
             
-            # حفظ البيانات الوصفية
+            # Save metadata
             self.model_manager.save_model_metadata(self.model, self.accuracy, features)
             
             self.is_trained = True
-            self.model_manager.logger.info("💾 تم حفظ النموذج بنجاح")
+            self.model_manager.logger.info("💾 Model saved successfully")
             
             return {
                 'accuracy': self.accuracy,
@@ -346,17 +244,17 @@ class AdvancedFailurePredictor:
             }
             
         except Exception as e:
-            self.model_manager.logger.error(f"❌ خطأ في تدريب النموذج: {e}")
+            self.model_manager.logger.error(f"❌ Error in model training: {e}")
             raise
     
     def predict_failure(self, sensor_data: Dict[str, float]) -> Dict[str, Any]:
-        """التنبؤ باحتمالية الفشل مع معالجة متقدمة للأخطاء"""
+        """Predict failure probability with advanced error handling"""
         if not self.is_trained:
-            self.model_manager.logger.warning("⚠️ النموذج غير مدرب، جاري التدريب التلقائي...")
+            self.model_manager.logger.warning("⚠️ Model not trained, auto-training...")
             self.train_model()
         
         try:
-            # التحقق من البيانات المفقودة
+            # Check for missing data
             missing_features = []
             input_features = []
             
@@ -364,31 +262,31 @@ class AdvancedFailurePredictor:
                 value = sensor_data.get(feature)
                 if value is None:
                     missing_features.append(feature)
-                    input_features.append(0)  # قيمة افتراضية
+                    input_features.append(0)  # Default value
                 else:
                     input_features.append(float(value))
             
             if missing_features:
-                self.model_manager.logger.warning(f"⚠️ بيانات مفقودة: {missing_features}")
+                self.model_manager.logger.warning(f"⚠️ Missing data: {missing_features}")
             
-            # تحضير البيانات للتنبؤ
+            # Prepare data for prediction
             input_df = pd.DataFrame([input_features], columns=AI_MODELS_CONFIG['failure_prediction']['features'])
             input_processed = self.preprocessor.preprocess_features(input_df, AI_MODELS_CONFIG['failure_prediction']['features'], fit=False)
             
-            # التنبؤ
+            # Prediction
             failure_probability = self.model.predict_proba(input_processed)[0][1]
             prediction = self.model.predict(input_processed)[0]
             
-            # تحسين تحديد مستوى الخطورة
+            # Improve risk level determination
             risk_level, risk_color = self._calculate_risk_level(failure_probability, sensor_data)
             
-            # تحديد نوع الفشل
+            # Determine failure type
             failure_type = self._determine_failure_type(sensor_data)
             
-            # توليد التوصيات
+            # Generate recommendations
             recommendations = self._generate_recommendations(sensor_data, failure_probability, risk_level)
             
-            # وقت الصيانة المقترح
+            # Suggested maintenance timing
             maintenance_timing = self._suggest_maintenance_timing(failure_probability, sensor_data)
             
             return {
@@ -407,12 +305,12 @@ class AdvancedFailurePredictor:
             }
             
         except Exception as e:
-            self.model_manager.logger.error(f"❌ خطأ في التنبؤ: {e}")
+            self.model_manager.logger.error(f"❌ Prediction error: {e}")
             return self._get_error_response(str(e))
     
     def _calculate_risk_level(self, probability: float, sensor_data: Dict[str, float]) -> Tuple[str, str]:
-        """حساب مستوى الخطورة مع ألوان"""
-        # عوامل إضافية تؤثر على مستوى الخطورة
+        """Calculate risk level with colors"""
+        # Additional factors affecting risk level
         critical_factors = 0
         if sensor_data.get('temperature', 0) > 85:
             critical_factors += 1
@@ -421,29 +319,29 @@ class AdvancedFailurePredictor:
         if sensor_data.get('vibration_x', 0) > 6.0:
             critical_factors += 1
         
-        # تعديل مستوى الخطورة بناءً على العوامل الحرجة
+        # Adjust risk level based on critical factors
         adjusted_probability = probability + (critical_factors * 0.1)
         
         if adjusted_probability >= 0.8 or critical_factors >= 2:
-            return "حرج", "#dc3545"  # أحمر
+            return "Critical", "#dc3545"  # Red
         elif adjusted_probability >= 0.6:
-            return "مرتفع", "#fd7e14"  # برتقالي
+            return "High", "#fd7e14"  # Orange
         elif adjusted_probability >= 0.4:
-            return "متوسط", "#ffc107"  # أصفر
+            return "Medium", "#ffc107"  # Yellow
         elif adjusted_probability >= 0.2:
-            return "منخفض", "#20c997"  # أخضر فاتح
+            return "Low", "#20c997"  # Light green
         else:
-            return "طبيعي", "#198754"  # أخضر
+            return "Normal", "#198754"  # Green
     
     def _calculate_confidence(self, probability: float, sensor_data: Dict[str, float]) -> float:
-        """حساب ثقة التنبؤ"""
+        """Calculate prediction confidence"""
         base_confidence = probability
         
-        # عوامل تزيد الثقة
+        # Factors that increase confidence
         if all(key in sensor_data for key in ['temperature', 'vibration_x', 'oil_level']):
             base_confidence *= 1.1
         
-        # عوامل تقلل الثقة
+        # Factors that decrease confidence
         missing_data = len([v for v in sensor_data.values() if v == 0])
         if missing_data > 3:
             base_confidence *= 0.8
@@ -451,98 +349,98 @@ class AdvancedFailurePredictor:
         return min(base_confidence, 0.95)
     
     def _determine_failure_type(self, sensor_data: Dict[str, float]) -> str:
-        """تحديد نوع الفشل المحتمل بدقة"""
+        """Determine potential failure type accurately"""
         failure_types = []
         
-        # استخدام عتبات ديناميكية بناءً على أهمية الميزات
+        # Use dynamic thresholds based on feature importance
         vibration_threshold = 4.5 + (self.feature_importance.get('vibration_x', 0) * 2)
         temperature_threshold = 80 + (self.feature_importance.get('temperature', 0) * 10)
         
         if sensor_data.get('vibration_x', 0) > vibration_threshold:
-            failure_types.append("عدم اتزان المحور X")
+            failure_types.append("X-axis imbalance")
         if sensor_data.get('vibration_y', 0) > vibration_threshold:
-            failure_types.append("عدم اتزان المحور Y")
+            failure_types.append("Y-axis imbalance")
         if sensor_data.get('vibration_z', 0) > vibration_threshold:
-            failure_types.append("عدم اتزان المحور Z")
+            failure_types.append("Z-axis imbalance")
         if sensor_data.get('temperature', 0) > temperature_threshold:
-            failure_types.append("ارتفاع درجة الحرارة")
+            failure_types.append("Overheating")
         if sensor_data.get('oil_level', 0) < 0.3:
-            failure_types.append("نقص الزيت")
+            failure_types.append("Low oil level")
         if sensor_data.get('oil_quality', 0) < 0.4:
-            failure_types.append("تلوث الزيت")
+            failure_types.append("Oil contamination")
         if sensor_data.get('bearing_temperature', 0) > 85:
-            failure_types.append("تلف المحامل")
+            failure_types.append("Bearing damage")
         if sensor_data.get('flow_rate', 0) < 50:
-            failure_types.append("انخفاض الكفاءة")
+            failure_types.append("Low efficiency")
         
-        return "، ".join(failure_types) if failure_types else "لا توجد أعطال واضحة"
+        return ", ".join(failure_types) if failure_types else "No obvious failures"
     
     def _generate_recommendations(self, sensor_data: Dict[str, float], probability: float, risk_level: str) -> List[str]:
-        """توليد توصيات ذكية بناءً على البيانات"""
+        """Generate intelligent recommendations based on data"""
         recommendations = []
         priority = 1
         
-        # توصيات عاجلة
-        if risk_level in ["حرج", "مرتفع"]:
-            recommendations.append(f"{priority}. إيقاف المضخة فوراً والاتصال بالدعم الفني")
+        # Urgent recommendations
+        if risk_level in ["Critical", "High"]:
+            recommendations.append(f"{priority}. Stop pump immediately and contact technical support")
             priority += 1
         
         if sensor_data.get('oil_level', 0) < 0.2:
-            recommendations.append(f"{priority}. إضافة زيت عاجل (المستوى منخفض جداً)")
+            recommendations.append(f"{priority}. Urgent oil addition (level very low)")
             priority += 1
         
         if sensor_data.get('temperature', 0) > 90:
-            recommendations.append(f"{priority}. تبريد عاجل للمضخة")
+            recommendations.append(f"{priority}. Urgent pump cooling")
             priority += 1
         
-        # توصيات وقائية
+        # Preventive recommendations
         if probability > 0.6:
-            recommendations.append(f"{priority}. جدولة صيانة عاجلة خلال 24 ساعة")
+            recommendations.append(f"{priority}. Schedule urgent maintenance within 24 hours")
             priority += 1
         elif probability > 0.4:
-            recommendations.append(f"{priority}. جدولة صيانة خلال 3 أيام")
+            recommendations.append(f"{priority}. Schedule maintenance within 3 days")
             priority += 1
         elif probability > 0.2:
-            recommendations.append(f"{priority}. صيانة وقائية خلال أسبوع")
+            recommendations.append(f"{priority}. Preventive maintenance within a week")
             priority += 1
         
         if sensor_data.get('oil_quality', 0) < 0.5:
-            recommendations.append(f"{priority}. استبدال الزيت في أقرب فرصة")
+            recommendations.append(f"{priority}. Replace oil at the earliest opportunity")
             priority += 1
         
         if any(v > 4.0 for v in [sensor_data.get('vibration_x', 0), 
                                 sensor_data.get('vibration_y', 0), 
                                 sensor_data.get('vibration_z', 0)]):
-            recommendations.append(f"{priority}. فحص التوازن والمحامل")
+            recommendations.append(f"{priority}. Check balance and bearings")
             priority += 1
         
         if not recommendations:
-            recommendations.append("المضخة تعمل بشكل طبيعي - متابعة المراقبة الدورية")
+            recommendations.append("Pump operating normally - continue periodic monitoring")
         
         return recommendations
     
     def _suggest_maintenance_timing(self, probability: float, sensor_data: Dict[str, float]) -> str:
-        """اقتراح توقيت الصيانة"""
+        """Suggest maintenance timing"""
         operating_hours = sensor_data.get('operating_hours', 0)
         
         if probability > 0.7:
-            return "فوري (أقل من 24 ساعة)"
+            return "Immediate (less than 24 hours)"
         elif probability > 0.5:
-            return "عاجل (1-3 أيام)"
+            return "Urgent (1-3 days)"
         elif probability > 0.3:
-            return "قريب (أسبوع)"
+            return "Soon (1 week)"
         elif operating_hours > 3000:
-            return "وقائي (شهري)"
+            return "Preventive (monthly)"
         else:
-            return "روتيني (كل 3 أشهر)"
+            return "Routine (every 3 months)"
     
     def _get_feature_contributions(self, sensor_data: Dict[str, float]) -> Dict[str, float]:
-        """الحصول على مساهمة كل ميزة في التنبؤ"""
+        """Get feature contributions to prediction"""
         contributions = {}
         try:
             for feature, importance in self.feature_importance.items():
                 value = sensor_data.get(feature, 0)
-                # حساب مساهمة تقريبية (يمكن تحسين هذا المنطق)
+                # Calculate approximate contribution
                 contributions[feature] = round(value * importance * 10, 4)
         except Exception:
             pass
@@ -550,16 +448,16 @@ class AdvancedFailurePredictor:
         return contributions
     
     def _get_error_response(self, error_msg: str) -> Dict[str, Any]:
-        """إرجاع رد خطأ منظم"""
+        """Return structured error response"""
         return {
             'failure_probability': 0.0,
             'prediction': 0,
-            'predicted_failure_type': 'خطأ في التنبؤ',
+            'predicted_failure_type': 'Prediction error',
             'confidence': 0.0,
-            'risk_level': 'غير معروف',
+            'risk_level': 'Unknown',
             'risk_color': '#6c757d',
-            'recommendations': ['فحص نظام الذكاء الاصطناعي', 'مراجعة السجلات'],
-            'maintenance_timing': 'غير محدد',
+            'recommendations': ['Check AI system', 'Review logs'],
+            'maintenance_timing': 'Unspecified',
             'feature_contributions': {},
             'timestamp': datetime.now(),
             'model_accuracy': 0.0,
@@ -567,21 +465,21 @@ class AdvancedFailurePredictor:
         }
     
     def get_model_info(self) -> Dict[str, Any]:
-        """الحصول على معلومات النموذج"""
+        """Get model information"""
         return {
             'is_trained': self.is_trained,
             'accuracy': self.accuracy,
             'model_type': self.model_type,
             'feature_importance': self.feature_importance,
-            'last_trained': self.model_manager.model_history[-1]['timestamp'] if self.model_manager.model_history else 'غير متوفر',
+            'last_trained': self.model_manager.model_history[-1]['timestamp'] if self.model_manager.model_history else 'Not available',
             'features_count': len(AI_MODELS_CONFIG['failure_prediction']['features'])
         }
 
 class AdvancedAnomalyDetector:
-    """كاشف شذوذ متقدم"""
+    """Advanced anomaly detector"""
     
     def __init__(self):
-        self.model = IsolationForest(
+        self.detector = IsolationForest(
             contamination=0.1,
             random_state=42,
             n_estimators=100
@@ -591,47 +489,64 @@ class AdvancedAnomalyDetector:
         self.logger = logging.getLogger(__name__)
     
     def detect_anomalies(self, sensor_data: pd.DataFrame, sensitivity: float = 0.5) -> pd.DataFrame:
-        """كشف الشذوذ مع قابلية ضبط الحساسية"""
+        """Detect anomalies with missing feature logging"""
         try:
-            if len(sensor_data) < 20:
-                self.logger.warning("بيانات غير كافية لكشف الشذوذ")
+            sensor_data = sensor_data.copy()
+
+            # Ensure result columns exist by default
+            if 'anomaly' not in sensor_data.columns:
                 sensor_data['anomaly'] = False
+            if 'anomaly_score' not in sensor_data.columns:
                 sensor_data['anomaly_score'] = 0.0
+            if 'anomaly_severity' not in sensor_data.columns:
                 sensor_data['anomaly_severity'] = 'low'
+
+            if len(sensor_data) < 20:
+                self.logger.warning("Insufficient data for anomaly detection")
                 return sensor_data
-            
-            # معالجة البيانات
+
             features = AI_MODELS_CONFIG['failure_prediction']['features']
-            X = sensor_data[features].fillna(method='ffill').fillna(0)
+
+            # Log missing features
+            missing = [f for f in features if f not in sensor_data.columns]
+            if missing:
+                self.logger.warning(f"⚠️ Missing features for anomaly detection: {missing}")
+                # Add columns as NaN to ensure column order later
+                for m in missing:
+                    sensor_data[m] = np.nan
+
+            # Reindex according to required order and temporarily fill
+            X = sensor_data.reindex(columns=features).fillna(method='ffill').fillna(0)
+
             X_scaled = self.scaler.fit_transform(X)
+
+            scores = self.detector.fit_predict(X_scaled)
+            anomaly_scores = self.detector.decision_function(X_scaled)
             
-            # ضبط الحساسية
-            contamination = 0.05 + (sensitivity * 0.1)  # 0.05 إلى 0.15
-            self.model.set_params(contamination=min(contamination, 0.2))
-            
-            # الكشف عن الشذوذ
-            anomalies = self.model.fit_predict(X_scaled)
-            scores = self.model.decision_function(X_scaled)
-            
-            # إضافة النتائج للبيانات
-            sensor_data['anomaly'] = anomalies == -1
-            sensor_data['anomaly_score'] = scores
-            sensor_data['anomaly_severity'] = sensor_data['anomaly_score'].apply(
-                lambda x: 'high' if x < -0.1 else 'medium' if x < 0 else 'low'
-            )
-            
-            self.is_trained = True
-            
-            # تسجيل الإحصائيات
-            anomaly_count = sensor_data['anomaly'].sum()
-            self.logger.info(f"تم كشف {anomaly_count} حالة شذوذ من {len(sensor_data)} سجل")
-            
-            return sensor_data
-            
-        except Exception as e:
-            self.logger.error(f"خطأ في كشف الشذوذ: {e}")
+            # Convert results to appropriate format
+            norm_scores = (anomaly_scores - np.min(anomaly_scores)) / (np.ptp(anomaly_scores) + 1e-9)
+
+            threshold = np.quantile(norm_scores, 1.0 - sensitivity)
+            anomalies = norm_scores > threshold
+
+            sensor_data['anomaly_score'] = norm_scores
+            sensor_data['anomaly'] = anomalies
+            sensor_data['anomaly_severity'] = np.where(norm_scores > 0.8, 'high',
+                                                    np.where(norm_scores > 0.5, 'medium', 'low'))
+
             return sensor_data
 
-# إنشاء نسخ عامة من النماذج المطورة
+        except Exception as e:
+            self.logger.error(f"Error in anomaly detection: {e}")
+            # Ensure required columns are returned
+            if 'anomaly' not in sensor_data.columns:
+                sensor_data['anomaly'] = False
+            if 'anomaly_score' not in sensor_data.columns:
+                sensor_data['anomaly_score'] = 0.0
+            if 'anomaly_severity' not in sensor_data.columns:
+                sensor_data['anomaly_severity'] = 'low'
+            return sensor_data
+
+# Create global instances of advanced models
 failure_predictor = AdvancedFailurePredictor()
 anomaly_detector = AdvancedAnomalyDetector()
