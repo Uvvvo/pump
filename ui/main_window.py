@@ -34,6 +34,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.logger = get_logger()
         self.current_pump_id = 1
+        self.cache = {}  # إضافة نظام التخزين المؤقت
+        self.cache_timeout = 30000  # 30 ثانية
+        self.last_update_time = {}
         self.setup_ui()
         self.setup_timer()
         self.load_initial_data()
@@ -542,14 +545,36 @@ class MainWindow(QMainWindow):
     
     def setup_timer(self):
         """إعداد المؤقت للتحديث التلقائي"""
+        # تقليل معدل التحديث لتحسين الأداء
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.auto_update)
-        self.update_timer.start(UI_CONFIG['refresh_interval'])
+        self.update_timer.start(30000)  # 30 ثانية بدلاً من فترات قصيرة
         
-        # مؤقت للتحديث البطيء (كل دقيقة)
+        # مؤقت للتحديث البطيء (كل 5 دقائق)
         self.slow_update_timer = QTimer()
         self.slow_update_timer.timeout.connect(self.slow_update)
-        self.slow_update_timer.start(60000)  # كل دقيقة
+        self.slow_update_timer.start(300000)  # 5 دقائق
+    
+    def get_cached_data(self, key, fetch_function, force_refresh=False):
+        """الحصول على بيانات مع التخزين المؤقت"""
+        now = datetime.now().timestamp() * 1000
+        
+        if not force_refresh and key in self.cache:
+            data, timestamp = self.cache[key]
+            if now - timestamp < self.cache_timeout:
+                return data
+        
+        # جلب بيانات جديدة
+        data = fetch_function()
+        self.cache[key] = (data, now)
+        return data
+    
+    def clear_cache(self, key=None):
+        """مسح التخزين المؤقت"""
+        if key:
+            self.cache.pop(key, None)
+        else:
+            self.cache.clear()
     
     def load_initial_data(self):
         """تحميل البيانات الأولية"""
@@ -561,7 +586,7 @@ class MainWindow(QMainWindow):
     def update_quick_stats(self):
         """تحديث الإحصائيات السريعة"""
         try:
-            stats = db_manager.get_system_stats()
+            stats = self.get_cached_data('system_stats', db_manager.get_system_stats)
             
             self.total_pumps_label.setText(str(stats.get('total_pumps', 0)))
             self.operational_label.setText(str(stats.get('operational_pumps', 0)))
@@ -574,58 +599,95 @@ class MainWindow(QMainWindow):
     def update_active_pumps(self):
         """تحديث قائمة المضخات النشطة"""
         try:
-            self.pumps_list.clear()
-            pumps = db_manager.get_pumps_with_stats()
+            pumps = self.get_cached_data('pumps', db_manager.get_pumps_with_stats)
             
+            # تحديث تدريجي بدلاً من مسح كامل
+            current_items = {}
+            for i in range(self.pumps_list.count()):
+                item = self.pumps_list.item(i)
+                pump_id = item.data(Qt.ItemDataRole.UserRole)
+                current_items[pump_id] = (i, item)
+            
+            # تحديث أو إضافة المضخات
             for _, pump in pumps.iterrows():
+                pump_id = pump['id']
                 status_icon = "🟢" if pump['status'] == 'operational' else "🟡" if pump['status'] == 'maintenance' else "🔴"
                 item_text = f"{status_icon} {pump['name']}\n📍 {pump['location']} | ⚡ {pump['sensor_count']} حساس"
                 
-                item = QListWidgetItem(item_text)
-                item.setData(Qt.ItemDataRole.UserRole, pump['id'])
-                
-                # تلوين العنصر حسب الحالة
-                if pump['status'] == 'operational':
-                    item.setBackground(QColor(81, 207, 102, 50))
-                elif pump['status'] == 'maintenance':
-                    item.setBackground(QColor(255, 179, 0, 50))
+                if pump_id in current_items:
+                    # تحديث العنصر الموجود
+                    index, item = current_items[pump_id]
+                    if item.text() != item_text:
+                        item.setText(item_text)
+                        self.update_pump_item_style(item, pump)
+                    # إزالة من القائمة الحالية
+                    current_items.pop(pump_id)
                 else:
-                    item.setBackground(QColor(255, 107, 107, 50))
-                
-                self.pumps_list.addItem(item)
+                    # إضافة عنصر جديد
+                    self.add_pump_item(pump)
+            
+            # إزالة المضخات التي لم تعد موجودة
+            for pump_id, (index, _) in current_items.items():
+                self.pumps_list.takeItem(index)
                 
         except Exception as e:
             self.logger.error(f"خطأ في تحديث قائمة المضخات: {e}")
     
+    def add_pump_item(self, pump):
+        """إضافة عنصر مضخة جديد"""
+        status_icon = "🟢" if pump['status'] == 'operational' else "🟡" if pump['status'] == 'maintenance' else "🔴"
+        item_text = f"{status_icon} {pump['name']}\n📍 {pump['location']} | ⚡ {pump['sensor_count']} حساس"
+        
+        item = QListWidgetItem(item_text)
+        item.setData(Qt.ItemDataRole.UserRole, pump['id'])
+        self.update_pump_item_style(item, pump)
+        self.pumps_list.addItem(item)
+    
+    def update_pump_item_style(self, item, pump):
+        """تحديث نمط عنصر المضخة"""
+        if pump['status'] == 'operational':
+            item.setBackground(QColor(81, 207, 102, 50))
+        elif pump['status'] == 'maintenance':
+            item.setBackground(QColor(255, 179, 0, 50))
+        else:
+            item.setBackground(QColor(255, 107, 107, 50))
+    
     def update_active_alerts(self):
         """تحديث قائمة الإنذارات النشطة"""
         try:
-            alerts = db_manager.get_active_alerts()
+            alerts = self.get_cached_data('alerts', db_manager.get_active_alerts)
             
             if alerts.empty:
-                self.alerts_list.setText("✅ لا توجد إنذارات نشطة")
+                if self.alerts_list.text() != "✅ لا توجد إنذارات نشطة":
+                    self.alerts_list.setText("✅ لا توجد إنذارات نشطة")
                 return
             
-            alerts_text = ""
-            alert_count = 0
-            for _, alert in alerts.head(3).iterrows():  # عرض أول 3 إنذارات فقط
-                severity_icon = "🔴" if alert['severity'] == 'high' else "🟡" if alert['severity'] == 'medium' else "🔵"
-                alerts_text += f"{severity_icon} {alert['pump_name']}: {alert['message']}\n"
-                alert_count += 1
-            
-            if len(alerts) > 3:
-                alerts_text += f"... ⚠️ و{len(alerts) - 3} إنذار آخر"
-            
-            self.alerts_list.setText(alerts_text)
-            
+            alerts_text = self.format_alerts_text(alerts)
+            if self.alerts_list.text() != alerts_text:
+                self.alerts_list.setText(alerts_text)
+                
         except Exception as e:
             self.logger.error(f"خطأ في تحديث الإنذارات: {e}")
+    
+    def format_alerts_text(self, alerts):
+        """تنسيق نص الإنذارات"""
+        alerts_text = ""
+        alert_count = 0
+        for _, alert in alerts.head(3).iterrows():  # عرض أول 3 إنذارات فقط
+            severity_icon = "🔴" if alert['severity'] == 'high' else "🟡" if alert['severity'] == 'medium' else "🔵"
+            alerts_text += f"{severity_icon} {alert['pump_name']}: {alert['message']}\n"
+            alert_count += 1
+        
+        if len(alerts) > 3:
+            alerts_text += f"... ⚠️ و{len(alerts) - 3} إنذار آخر"
+        
+        return alerts_text
     
     def update_connection_status(self):
         """تحديث حالة الاتصال"""
         try:
-            # محاكاة فحص حالة الاتصال
-            stats = db_manager.get_system_stats()
+            # استخدام التخزين المؤقت
+            stats = self.get_cached_data('system_stats', db_manager.get_system_stats)
             last_update = stats.get('last_data_update')
             
             if last_update:
@@ -647,14 +709,21 @@ class MainWindow(QMainWindow):
     
     def auto_update(self):
         """التحديث التلقائي للبيانات"""
-        self.update_quick_stats()
-        self.update_active_alerts()
-        self.update_signal.emit()
+        try:
+            self.update_quick_stats()
+            self.update_active_alerts()
+            self.update_signal.emit()
+        except Exception as e:
+            self.logger.error(f"خطأ في التحديث التلقائي: {e}")
+            self.clear_cache()  # مسح cache في حالة الخطأ
     
     def slow_update(self):
         """التحديث البطيء للبيانات"""
-        self.update_active_pumps()
-        self.update_connection_status()
+        try:
+            self.update_active_pumps()
+            self.update_connection_status()
+        except Exception as e:
+            self.logger.error(f"خطأ في التحديث البطيء: {e}")
     
     def update_all_tabs(self):
         """تحديث جميع التبويبات"""
@@ -688,18 +757,18 @@ class MainWindow(QMainWindow):
         self.update_time()
         self.bottom_status_bar.addPermanentWidget(self.time_label)
         
-        # مؤقتات التحديث
+        # مؤقتات التحديث - تقليل التكرار
         self.time_timer = QTimer()
         self.time_timer.timeout.connect(self.update_time)
-        self.time_timer.start(1000)
+        self.time_timer.start(5000)  # كل 5 ثواني بدلاً من كل ثانية
         
         self.memory_timer = QTimer()
         self.memory_timer.timeout.connect(self.update_memory_usage)
-        self.memory_timer.start(5000)  # كل 5 ثواني
+        self.memory_timer.start(30000)  # كل 30 ثانية بدلاً من كل 5 ثواني
     
     def update_time(self):
         """تحديث عرض الوقت"""
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.time_label.setText(f"🕒 {current_time}")
     
     def update_memory_usage(self):
@@ -739,6 +808,9 @@ class MainWindow(QMainWindow):
                 
                 if pump_id > 0:
                     self.status_label.setText(f"✅ تم إضافة المضخة: {pump_data['name']}")
+                    # مسح cache ذو الصلة
+                    self.clear_cache('pumps')
+                    self.clear_cache('system_stats')
                     self.load_initial_data()
                     self.update_all_tabs()
                     
@@ -759,6 +831,10 @@ class MainWindow(QMainWindow):
             dialog = LinkSensorsDialog(self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 self.status_label.setText("✅ تم ربط الحساسات بنجاح")
+                # مسح cache ذو الصلة
+                self.clear_cache('pumps')
+                self.clear_cache('system_stats')
+                self.clear_cache('alerts')
                 self.load_initial_data()
                 QMessageBox.information(self, "تم بنجاح", "تم ربط الحساسات بالمضخات بنجاح")
             
@@ -851,7 +927,8 @@ class MainWindow(QMainWindow):
         
         if reply == QMessageBox.StandardButton.Yes:
             self.status_label.setText("🆕 تم إنشاء مشروع جديد")
-            # هنا يمكن إضافة منطق لمسح البيانات الحالية
+            # مسح جميع ال cache
+            self.clear_cache()
             QTimer.singleShot(2000, lambda: self.status_label.setText("✅ جاهز"))
     
     def save_data(self):
@@ -863,6 +940,8 @@ class MainWindow(QMainWindow):
     def refresh_data(self):
         """تحديث البيانات يدوياً"""
         self.status_label.setText("🔄 جاري تحديث البيانات...")
+        # مسح cache وإعادة تحميل البيانات
+        self.clear_cache()
         self.auto_update()
         self.slow_update()
         QTimer.singleShot(1000, lambda: self.status_label.setText("✅ تم تحديث البيانات"))

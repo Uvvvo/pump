@@ -1,0 +1,21 @@
+[
+    {
+        "timestamp": "2025-10-23T03:32:57.647448",
+        "accuracy": 0.998,
+        "features": [
+            "vibration_x",
+            "vibration_y",
+            "vibration_z",
+            "temperature",
+            "pressure",
+            "flow_rate",
+            "power_consumption",
+            "operating_hours",
+            "bearing_temperature",
+            "oil_level",
+            "oil_quality"
+        ],
+        "model_type": "XGBClassifier",
+        "version": "1.0"
+    }
+]
