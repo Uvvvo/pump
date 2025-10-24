@@ -1,5 +1,5 @@
 """
-وحدة الأمان لتطبيق iPump
+Security module for the iPump application.
 """
 
 import hashlib
@@ -17,61 +17,61 @@ class SecurityManager:
         self.max_attempts = 5
         
     def hash_password(self, password: str) -> str:
-        """تشفير كلمة المرور باستخدام SHA-256"""
-        salt = "ipump_salt_2024"  # في التطبيق الحقيقي، يجب استخدام salt عشوائي
+        """Hash a password using SHA-256."""
+        salt = "ipump_salt_2024"  # In a production application an unpredictable salt should be used
         return hashlib.sha256((password + salt).encode()).hexdigest()
-    
+
     def verify_password(self, password: str, hashed: str) -> bool:
-        """التحقق من كلمة المرور"""
+        """Validate a password against a stored hash."""
         return self.hash_password(password) == hashed
-    
+
     def generate_secure_token(self, length: int = 32) -> str:
-        """إنشاء رمز أمان عشوائي"""
+        """Generate a random security token."""
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
-    
+
     def check_login_attempt(self, username: str) -> Tuple[bool, Optional[str]]:
-        """التحقق من محاولات تسجيل الدخول"""
+        """Check whether the user is allowed to attempt a login."""
         now = datetime.now()
-        
+
         if username in self.failed_attempts:
             attempts, last_attempt = self.failed_attempts[username]
-            
+
             if now - last_attempt < self.lockout_duration:
                 if attempts >= self.max_attempts:
                     remaining_time = self.lockout_duration - (now - last_attempt)
-                    return False, f"الحساب مؤقتاً. حاول مرة أخرى بعد {int(remaining_time.total_seconds() / 60)} دقيقة"
+                    return False, f"Account temporarily locked. Try again in {int(remaining_time.total_seconds() / 60)} minutes"
             else:
-                # إعادة تعيين العداد بعد انتهاء مدة القفل
+                # Reset the counter after the lockout duration ends
                 del self.failed_attempts[username]
-        
+
         return True, None
-    
+
     def record_failed_attempt(self, username: str):
-        """تسجيل محاولة فاشلة"""
+        """Record a failed login attempt."""
         now = datetime.now()
-        
+
         if username in self.failed_attempts:
             attempts, _ = self.failed_attempts[username]
             self.failed_attempts[username] = (attempts + 1, now)
         else:
             self.failed_attempts[username] = (1, now)
-        
-        self.logger.warning(f"محاولة تسجيل دخول فاشلة للمستخدم: {username}")
-    
+
+        self.logger.warning(f"Failed login attempt for user: {username}")
+
     def reset_failed_attempts(self, username: str):
-        """إعادة تعيين محاولات تسجيل الدخول الفاشلة"""
+        """Clear any recorded failed login attempts."""
         if username in self.failed_attempts:
             del self.failed_attempts[username]
-    
+
     def validate_input(self, input_str: str, max_length: int = 255) -> bool:
-        """التحقق من صحة الإدخال"""
+        """Validate user input."""
         if not input_str or len(input_str) > max_length:
             return False
-        
-        # منع الأحرف الخطرة
+
+        # Prevent dangerous characters
         dangerous_chars = [';', '"', "'", '<', '>', '|', '&', '$', '`']
         return not any(char in input_str for char in dangerous_chars)
 
-# إنشاء نسخة عامة من مدير الأمان
+# Expose a shared instance of the security manager
 security_manager = SecurityManager()

@@ -1,5 +1,5 @@
 """
-وحدة إدارة قاعدة البيانات لتطبيق iPump - مع إضافة جداول المضخات والحساسات
+Database management module for the iPump application with pump and sensor tables.
 """
 
 import sqlite3
@@ -20,10 +20,10 @@ class DatabaseManager:
         self.init_database()
     
     def init_database(self):
-        """تهيئة قاعدة البيانات وإنشاء الجداول"""
+        """Initialize the database and create tables."""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                # جدول المضخات
+                # Pumps table
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS pumps (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +38,7 @@ class DatabaseManager:
                     )
                 ''')
                 
-                # جدول الحساسات
+                # Sensors table
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS sensors (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +59,7 @@ class DatabaseManager:
                     )
                 ''')
                 
-                # جدول قراءات المستشعرات
+                # Sensor readings table
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS sensor_data (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,7 +82,7 @@ class DatabaseManager:
                     )
                 ''')
                 
-                # جدول التنبؤات
+                # Predictions table
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS predictions (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,7 +97,7 @@ class DatabaseManager:
                     )
                 ''')
                 
-                # جدول الصيانة
+                # Maintenance table
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS maintenance (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,7 +115,7 @@ class DatabaseManager:
                     )
                 ''')
                 
-                # جدول الإنذارات
+                # Alerts table
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS alerts (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,7 +131,7 @@ class DatabaseManager:
                     )
                 ''')
                 
-                # جدول سجل العمليات
+                # Operation logs table
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS operation_logs (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,7 +144,7 @@ class DatabaseManager:
                     )
                 ''')
                 
-                # إنشاء الفهارس لتحسين الأداء
+                # Create indexes to improve performance
                 conn.execute('CREATE INDEX IF NOT EXISTS idx_sensor_data_pump_id ON sensor_data(pump_id)')
                 conn.execute('CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp ON sensor_data(timestamp)')
                 conn.execute('CREATE INDEX IF NOT EXISTS idx_sensors_pump_id ON sensors(pump_id)')
@@ -152,26 +152,26 @@ class DatabaseManager:
                 conn.execute('CREATE INDEX IF NOT EXISTS idx_maintenance_pump_id ON maintenance(pump_id)')
                 conn.execute('CREATE INDEX IF NOT EXISTS idx_alerts_pump_id ON alerts(pump_id)')
                 
-                # إدخال بيانات نموذجية للمضخات
+                # Insert sample pump data
                 self._insert_sample_data(conn)
                 
-            self.logger.info("تم تهيئة قاعدة البيانات بنجاح")
+            self.logger.info("Database initialized successfully")
             
         except Exception as e:
-            self.logger.error(f"خطأ في تهيئة قاعدة البيانات: {e}")
+            self.logger.error(f"Database initialization error: {e}")
             raise
     
     def _insert_sample_data(self, conn):
-        """إدخال بيانات نموذجية للمضخات والحساسات"""
+        """Insert sample pump and sensor data."""
         try:
-            # التحقق من وجود مضخات مسبقاً
+            # Check if pumps already exist
             result = conn.execute("SELECT COUNT(*) FROM pumps").fetchone()
             if result[0] == 0:
                 sample_pumps = [
-                    ('مضخة المصفاة الرئيسية', 'الموقع أ', 'طرد مركزي', '2023-01-15', 'operational', 'المضخة الرئيسية للمصفاة'),
-                    ('مضخة النقل رقم 1', 'الموقع ب', 'مكبسية', '2023-02-20', 'operational', 'مضخة نقل رئيسية'),
-                    ('مضخة التغذية الرئيسية', 'الموقع ج', 'طرد مركزي', '2023-03-10', 'maintenance', 'تحت الصيانة الدورية'),
-                    ('مضخة الخدمة المساعدة', 'الموقع د', 'تغذية', '2023-04-05', 'operational', 'مضخة خدمة مساعدة')
+                    ('Refinery Main Pump', 'Site A', 'Centrifugal', '2023-01-15', 'operational', 'Primary refinery pump'),
+                    ('Transfer Pump 1', 'Site B', 'Reciprocating', '2023-02-20', 'operational', 'Primary transfer pump'),
+                    ('Main Feed Pump', 'Site C', 'Centrifugal', '2023-03-10', 'maintenance', 'Under routine maintenance'),
+                    ('Auxiliary Service Pump', 'Site D', 'Feed', '2023-04-05', 'operational', 'Auxiliary service pump')
                 ]
                 
                 conn.executemany('''
@@ -179,9 +179,9 @@ class DatabaseManager:
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', sample_pumps)
                 
-                self.logger.info("تم إدخال بيانات المضخات النموذجية")
+                self.logger.info("Inserted sample pump data")
             
-            # التحقق من وجود حساسات مسبقاً
+            # Check if sensors already exist
             result = conn.execute("SELECT COUNT(*) FROM sensors").fetchone()
             if result[0] == 0:
                 sample_sensors = [
@@ -200,14 +200,14 @@ class DatabaseManager:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', sample_sensors)
                 
-                self.logger.info("تم إدخال بيانات الحساسات النموذجية")
+                self.logger.info("Inserted sample sensor data")
                 
         except Exception as e:
-            self.logger.error(f"خطأ في إدخال البيانات النموذجية: {e}")
+            self.logger.error(f"Sample data insertion error: {e}")
     
-    # دوال إدارة المضخات
+    # Pump management methods
     def add_pump(self, pump_data: Dict[str, Any]) -> int:
-        """إضافة مضخة جديدة"""
+        """Add a new pump."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute('''
@@ -224,24 +224,24 @@ class DatabaseManager:
                 
                 pump_id = cursor.lastrowid
                 
-                # تسجيل العملية في السجل
+                # Record the action in the log
                 conn.execute('''
                     INSERT INTO operation_logs (pump_id, action_type, description)
                     VALUES (?, 'ADD_PUMP', ?)
-                ''', (pump_id, f'تم إضافة مضخة جديدة: {pump_data["name"]}'))
+                ''', (pump_id, f'Added new pump: {pump_data["name"]}'))
                 
-                self.logger.info(f"تم إضافة مضخة جديدة بالمعرف: {pump_id}")
+                self.logger.info(f"Added new pump with id: {pump_id}")
                 return pump_id
                 
         except sqlite3.IntegrityError:
-            self.logger.error(f"خطأ: اسم المضخة '{pump_data['name']}' موجود مسبقاً")
+            self.logger.error(f"Error: Pump name '{pump_data['name']}' already exists")
             return -1
         except Exception as e:
-            self.logger.error(f"خطأ في إضافة المضخة: {e}")
+            self.logger.error(f"Pump insertion error: {e}")
             return -1
     
     def update_pump(self, pump_id: int, pump_data: Dict[str, Any]) -> bool:
-        """تحديث بيانات المضخة"""
+        """Update pump information."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute('''
@@ -259,74 +259,74 @@ class DatabaseManager:
                     pump_id
                 ))
                 
-                # تسجيل العملية في السجل
+                # Record the action in the log
                 conn.execute('''
                     INSERT INTO operation_logs (pump_id, action_type, description)
                     VALUES (?, 'UPDATE_PUMP', ?)
-                ''', (pump_id, f'تم تحديث بيانات المضخة: {pump_data["name"]}'))
+                ''', (pump_id, f'Updated pump: {pump_data["name"]}'))
                 
-                self.logger.info(f"تم تحديث المضخة بالمعرف: {pump_id}")
+                self.logger.info(f"Updated pump with id: {pump_id}")
                 return True
                 
         except sqlite3.IntegrityError:
-            self.logger.error(f"خطأ: اسم المضخة '{pump_data['name']}' موجود مسبقاً")
+            self.logger.error(f"Error: Pump name '{pump_data['name']}' already exists")
             return False
         except Exception as e:
-            self.logger.error(f"خطأ في تحديث المضخة: {e}")
+            self.logger.error(f"Pump update error: {e}")
             return False
     
     def delete_pump(self, pump_id: int) -> bool:
-        """حذف مضخة"""
+        """Delete a pump."""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                # الحصول على اسم المضخة قبل الحذف للتسجيل
+                # Retrieve the pump name before deletion for logging
                 pump_name = conn.execute('SELECT name FROM pumps WHERE id = ?', (pump_id,)).fetchone()
                 
                 conn.execute('DELETE FROM pumps WHERE id = ?', (pump_id,))
                 
-                # تسجيل العملية في السجل
+                # Record the action in the log
                 if pump_name:
                     conn.execute('''
                         INSERT INTO operation_logs (action_type, description)
                         VALUES ('DELETE_PUMP', ?)
-                    ''', (f'تم حذف المضخة: {pump_name[0]}',))
+                    ''', (f'Deleted pump: {pump_name[0]}',))
                 
-                self.logger.info(f"تم حذف المضخة بالمعرف: {pump_id}")
+                self.logger.info(f"Deleted pump with id: {pump_id}")
                 return True
                 
         except Exception as e:
-            self.logger.error(f"خطأ في حذف المضخة: {e}")
+            self.logger.error(f"Pump deletion error: {e}")
             return False
     
     def get_pump(self, pump_id: int) -> pd.DataFrame:
-        """الحصول على بيانات مضخة محددة"""
+        """Fetch data for a specific pump."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 return pd.read_sql('SELECT * FROM pumps WHERE id = ?', conn, params=(pump_id,))
         except Exception as e:
-            self.logger.error(f"خطأ في جلب بيانات المضخة: {e}")
+            self.logger.error(f"Pump retrieval error: {e}")
             return pd.DataFrame()
     
     def get_pumps(self) -> pd.DataFrame:
-        """الحصول على قائمة جميع المضخات"""
+        """Retrieve all pumps."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 return pd.read_sql('''
                     SELECT *, 
                     CASE 
-                        WHEN status = 'operational' THEN 'تعمل'
-                        WHEN status = 'maintenance' THEN 'صيانة' 
-                        ELSE 'متوقفة'
+                        WHEN status = 'operational' THEN 'Operational'
+                        WHEN status = 'maintenance' THEN 'Maintenance' 
+                        ELSE 'Stopped'
                     END as status_text
                     FROM pumps 
                     ORDER BY name
                 ''', conn)
         except Exception as e:
-            self.logger.error(f"خطأ في جلب بيانات المضخات: {e}")
+            self.logger.error(f"Pump list retrieval error: {e}")
             return pd.DataFrame()
     
     def get_pumps_with_stats(self) -> pd.DataFrame:
-        """الحصول على قائمة المضخات مع إحصائيات"""
+        """Retrieve pumps with statistics."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 return pd.read_sql('''
@@ -341,12 +341,12 @@ class DatabaseManager:
                     ORDER BY p.name
                 ''', conn)
         except Exception as e:
-            self.logger.error(f"خطأ في جلب إحصائيات المضخات: {e}")
+            self.logger.error(f"Pump statistics retrieval error: {e}")
             return pd.DataFrame()
     
-    # دوال إدارة الحساسات
+    # Sensor management methods
     def add_sensor(self, sensor_data: Dict[str, Any]) -> int:
-        """إضافة حساس جديد"""
+        """Add a new sensor."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute('''
@@ -368,27 +368,27 @@ class DatabaseManager:
                 
                 sensor_id = cursor.lastrowid
                 
-                # تسجيل العملية في السجل
+                # Record the action in the log
                 conn.execute('''
                     INSERT INTO operation_logs (pump_id, action_type, description)
                     VALUES (?, 'ADD_SENSOR', ?)
-                ''', (sensor_data['pump_id'], f'تم إضافة حساس: {sensor_data["sensor_id"]}'))
+                ''', (sensor_data['pump_id'], f'Added sensor: {sensor_data["sensor_id"]}'))
                 
-                self.logger.info(f"تم إضافة حساس جديد بالمعرف: {sensor_id}")
+                self.logger.info(f"Added new sensor with id: {sensor_id}")
                 return sensor_id
                 
         except sqlite3.IntegrityError as e:
             if 'UNIQUE constraint failed: sensors.sensor_id' in str(e):
-                self.logger.error(f"خطأ: معرف الحساس '{sensor_data['sensor_id']}' موجود مسبقاً")
+                self.logger.error(f"Error: Sensor identifier '{sensor_data['sensor_id']}' already exists")
             elif 'UNIQUE constraint failed: sensors.pump_id, sensors.sensor_type' in str(e):
-                self.logger.error(f"خطأ: نوع الحساس '{sensor_data['sensor_type']}' موجود مسبقاً للمضخة {sensor_data['pump_id']}")
+                self.logger.error(f"Error: Sensor type '{sensor_data['sensor_type']}' already exists for pump {sensor_data['pump_id']}")
             return -1
         except Exception as e:
-            self.logger.error(f"خطأ في إضافة الحساس: {e}")
+            self.logger.error(f"Sensor insertion error: {e}")
             return -1
     
     def update_sensor(self, sensor_id: int, sensor_data: Dict[str, Any]) -> bool:
-        """تحديث بيانات الحساس"""
+        """Update sensor information."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute('''
@@ -408,27 +408,27 @@ class DatabaseManager:
                     sensor_id
                 ))
                 
-                self.logger.info(f"تم تحديث الحساس بالمعرف: {sensor_id}")
+                self.logger.info(f"Updated sensor with id: {sensor_id}")
                 return True
                 
         except Exception as e:
-            self.logger.error(f"خطأ في تحديث الحساس: {e}")
+            self.logger.error(f"Sensor update error: {e}")
             return False
     
     def delete_sensor(self, sensor_id: int) -> bool:
-        """حذف حساس"""
+        """Delete a sensor."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute('DELETE FROM sensors WHERE id = ?', (sensor_id,))
-                self.logger.info(f"تم حذف الحساس بالمعرف: {sensor_id}")
+                self.logger.info(f"Deleted sensor with id: {sensor_id}")
                 return True
                 
         except Exception as e:
-            self.logger.error(f"خطأ في حذف الحساس: {e}")
+            self.logger.error(f"Sensor deletion error: {e}")
             return False
     
     def get_sensor(self, sensor_id: int) -> pd.DataFrame:
-        """الحصول على بيانات حساس محدد"""
+        """Fetch data for a specific sensor."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 return pd.read_sql('''
@@ -438,29 +438,29 @@ class DatabaseManager:
                     WHERE s.id = ?
                 ''', conn, params=(sensor_id,))
         except Exception as e:
-            self.logger.error(f"خطأ في جلب بيانات الحساس: {e}")
+            self.logger.error(f"Sensor retrieval error: {e}")
             return pd.DataFrame()
     
     def get_pump_sensors(self, pump_id: int) -> pd.DataFrame:
-        """الحصول على الحساسات المرتبطة بمضخة"""
+        """Retrieve sensors linked to a pump."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 return pd.read_sql('''
                     SELECT s.*, 
                     CASE 
-                        WHEN s.status = 'active' THEN 'نشط'
-                        ELSE 'غير نشط'
+                        WHEN s.status = 'active' THEN 'Active'
+                        ELSE 'Inactive'
                     END as status_text
                     FROM sensors s 
                     WHERE s.pump_id = ? 
                     ORDER BY s.sensor_type
                 ''', conn, params=(pump_id,))
         except Exception as e:
-            self.logger.error(f"خطأ في جلب حساسات المضخة: {e}")
+            self.logger.error(f"Pump sensors retrieval error: {e}")
             return pd.DataFrame()
     
     def get_all_sensors(self) -> pd.DataFrame:
-        """الحصول على جميع الحساسات"""
+        """Retrieve all sensors."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 return pd.read_sql('''
@@ -470,11 +470,11 @@ class DatabaseManager:
                     ORDER BY p.name, s.sensor_type
                 ''', conn)
         except Exception as e:
-            self.logger.error(f"خطأ في جلب جميع الحساسات: {e}")
+            self.logger.error(f"All sensors retrieval error: {e}")
             return pd.DataFrame()
     
     def link_sensors_to_pump(self, pump_id: int, sensors_data: List[Dict[str, Any]]) -> bool:
-        """ربط مجموعة حساسات بمضخة"""
+        """Link multiple sensors to a pump."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 for sensor_data in sensors_data:
@@ -492,21 +492,21 @@ class DatabaseManager:
                         sensor_data.get('sampling_rate', 10)
                     ))
                 
-                # تسجيل العملية في السجل
+                # Record the action in the log
                 conn.execute('''
                     INSERT INTO operation_logs (pump_id, action_type, description)
                     VALUES (?, 'LINK_SENSORS', ?)
-                ''', (pump_id, f'تم ربط {len(sensors_data)} حساس بالمضخة'))
+                ''', (pump_id, f'Linked {len(sensors_data)} sensors to the pump'))
                 
-                self.logger.info(f"تم ربط {len(sensors_data)} حساس بالمضخة {pump_id}")
+                self.logger.info(f"Linked {len(sensors_data)} sensors to pump {pump_id}")
                 return True
                 
         except Exception as e:
-            self.logger.error(f"خطأ في ربط الحساسات: {e}")
+            self.logger.error(f"Sensor linking error: {e}")
             return False
     
     def get_available_sensor_types(self) -> List[str]:
-        """الحصول على أنواع الحساسات المتاحة"""
+        """Retrieve available sensor types."""
         return [
             'vibration_x', 'vibration_y', 'vibration_z',
             'temperature', 'pressure', 'flow_rate',
@@ -514,9 +514,9 @@ class DatabaseManager:
             'bearing_temperature'
         ]
     
-    # دوال بيانات المستشعرات
+    # Sensor data methods
     def save_sensor_data(self, pump_id: int, data: Dict[str, float], sensor_id: int = None):
-        """حفظ بيانات المستشعرات"""
+        """Save sensor data."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute('''
@@ -542,10 +542,10 @@ class DatabaseManager:
                 ))
                 
         except Exception as e:
-            self.logger.error(f"خطأ في حفظ بيانات المستشعرات: {e}")
+            self.logger.error(f"Sensor data save error: {e}")
     
     def get_latest_sensor_data(self, pump_id: int) -> pd.DataFrame:
-        """الحصول على أحدث بيانات المستشعرات لمضخة محددة"""
+        """Fetch the latest sensor data for a pump."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 query = '''
@@ -556,11 +556,11 @@ class DatabaseManager:
                 '''
                 return pd.read_sql(query, conn, params=(pump_id,))
         except Exception as e:
-            self.logger.error(f"خطأ في جلب أحدث بيانات المستشعرات: {e}")
+            self.logger.error(f"Latest sensor data retrieval error: {e}")
             return pd.DataFrame()
     
     def get_sensor_data_history(self, pump_id: int, hours: int = 24) -> pd.DataFrame:
-        """الحصول على التاريخ الزمني لبيانات المستشعرات"""
+        """Retrieve sensor data history."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 query = '''
@@ -570,12 +570,12 @@ class DatabaseManager:
                 '''
                 return pd.read_sql(query, conn, params=(pump_id, f'-{hours} hours'))
         except Exception as e:
-            self.logger.error(f"خطأ في جلب التاريخ الزمني للبيانات: {e}")
+            self.logger.error(f"Sensor data history retrieval error: {e}")
             return pd.DataFrame()
     
-    # دوال التنبؤات
+    # Prediction methods
     def save_prediction(self, pump_id: int, prediction_data: Dict[str, Any]):
-        """حفظ نتائج التنبؤ"""
+        """Save prediction results."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute('''
@@ -593,10 +593,10 @@ class DatabaseManager:
                 ))
                 
         except Exception as e:
-            self.logger.error(f"خطأ في حفظ التنبؤ: {e}")
+            self.logger.error(f"Prediction save error: {e}")
     
     def get_predictions(self, pump_id: int = None, days: int = 30) -> pd.DataFrame:
-        """الحصول على التنبؤات"""
+        """Retrieve predictions."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 if pump_id:
@@ -618,12 +618,12 @@ class DatabaseManager:
                     '''
                     return pd.read_sql(query, conn, params=(f'-{days} days',))
         except Exception as e:
-            self.logger.error(f"خطأ في جلب التنبؤات: {e}")
+            self.logger.error(f"Prediction retrieval error: {e}")
             return pd.DataFrame()
     
-    # دوال الإنذارات
+    # Alert methods
     def create_alert(self, pump_id: int, alert_type: str, severity: str, message: str):
-        """إنشاء إنذار جديد"""
+        """Create a new alert."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute('''
@@ -631,17 +631,17 @@ class DatabaseManager:
                     VALUES (?, ?, ?, ?)
                 ''', (pump_id, alert_type, severity, message))
                 
-                # تسجيل العملية في السجل
+                # Record the action in the log
                 conn.execute('''
                     INSERT INTO operation_logs (pump_id, action_type, description)
                     VALUES (?, 'CREATE_ALERT', ?)
-                ''', (pump_id, f'إنذار {severity}: {message}'))
+                ''', (pump_id, f'Alert {severity}: {message}'))
                 
         except Exception as e:
-            self.logger.error(f"خطأ في إنشاء الإنذار: {e}")
+            self.logger.error(f"Alert creation error: {e}")
     
     def get_active_alerts(self) -> pd.DataFrame:
-        """الحصول على الإنذارات النشطة"""
+        """Retrieve active alerts."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 return pd.read_sql('''
@@ -652,11 +652,11 @@ class DatabaseManager:
                     ORDER BY a.timestamp DESC
                 ''', conn)
         except Exception as e:
-            self.logger.error(f"خطأ في جلب الإنذارات النشطة: {e}")
+            self.logger.error(f"Active alerts retrieval error: {e}")
             return pd.DataFrame()
     
     def resolve_alert(self, alert_id: int, resolved_by: str = "System"):
-        """حل الإنذار"""
+        """Resolve an alert."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute('''
@@ -666,11 +666,11 @@ class DatabaseManager:
                 ''', (resolved_by, alert_id))
                 
         except Exception as e:
-            self.logger.error(f"خطأ في حل الإنذار: {e}")
+            self.logger.error(f"Alert resolution error: {e}")
     
-    # دوال الصيانة
+    # Maintenance methods
     def schedule_maintenance(self, maintenance_data: Dict[str, Any]) -> int:
-        """جدولة صيانة"""
+        """Schedule maintenance."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute('''
@@ -688,20 +688,20 @@ class DatabaseManager:
                 
                 maintenance_id = cursor.lastrowid
                 
-                # تسجيل العملية في السجل
+                # Record the action in the log
                 conn.execute('''
                     INSERT INTO operation_logs (pump_id, action_type, description)
                     VALUES (?, 'SCHEDULE_MAINTENANCE', ?)
-                ''', (maintenance_data['pump_id'], f'تم جدولة صيانة: {maintenance_data["maintenance_type"]}'))
+                ''', (maintenance_data['pump_id'], f'Scheduled maintenance: {maintenance_data["maintenance_type"]}'))
                 
                 return maintenance_id
                 
         except Exception as e:
-            self.logger.error(f"خطأ في جدولة الصيانة: {e}")
+            self.logger.error(f"Maintenance scheduling error: {e}")
             return -1
     
     def get_maintenance_schedule(self, pump_id: int = None) -> pd.DataFrame:
-        """الحصول على جدول الصيانة"""
+        """Retrieve the maintenance schedule."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 if pump_id:
@@ -722,12 +722,12 @@ class DatabaseManager:
                     '''
                     return pd.read_sql(query, conn)
         except Exception as e:
-            self.logger.error(f"خطأ في جلب جدول الصيانة: {e}")
+            self.logger.error(f"Maintenance schedule retrieval error: {e}")
             return pd.DataFrame()
     
-    # دوال السجل والاحصائيات
+    # Log and statistics methods
     def get_operation_logs(self, days: int = 7) -> pd.DataFrame:
-        """الحصول على سجل العمليات"""
+        """Retrieve the operation log."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 return pd.read_sql('''
@@ -738,99 +738,99 @@ class DatabaseManager:
                     ORDER BY l.timestamp DESC
                 ''', conn, params=(f'-{days} days',))
         except Exception as e:
-            self.logger.error(f"خطأ في جلب سجل العمليات: {e}")
+            self.logger.error(f"Operation log retrieval error: {e}")
             return pd.DataFrame()
     
     def get_system_stats(self) -> Dict[str, Any]:
-        """الحصول على إحصائيات النظام"""
+        """Retrieve system statistics."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 stats = {}
                 
-                # عدد المضخات
+                # Total pumps
                 result = conn.execute("SELECT COUNT(*) FROM pumps").fetchone()
                 stats['total_pumps'] = result[0]
                 
-                # عدد المضخات العاملة
+                # Operational pumps
                 result = conn.execute("SELECT COUNT(*) FROM pumps WHERE status = 'operational'").fetchone()
                 stats['operational_pumps'] = result[0]
                 
-                # عدد الحساسات النشطة
+                # Active sensors
                 result = conn.execute("SELECT COUNT(*) FROM sensors WHERE status = 'active'").fetchone()
                 stats['active_sensors'] = result[0]
                 
-                # عدد الإنذارات النشطة
+                # Active alerts
                 result = conn.execute("SELECT COUNT(*) FROM alerts WHERE resolved = FALSE").fetchone()
                 stats['active_alerts'] = result[0]
                 
-                # عدد عمليات الصيانة المجدولة
+                # Scheduled maintenance tasks
                 result = conn.execute("SELECT COUNT(*) FROM maintenance WHERE status = 'scheduled'").fetchone()
                 stats['scheduled_maintenance'] = result[0]
                 
-                # آخر تحديث للبيانات
+                # Last data update
                 result = conn.execute("SELECT MAX(timestamp) FROM sensor_data").fetchone()
                 stats['last_data_update'] = result[0]
                 
                 return stats
                 
         except Exception as e:
-            self.logger.error(f"خطأ في جلب إحصائيات النظام: {e}")
+            self.logger.error(f"System statistics retrieval error: {e}")
             return {}
     
-    # أدوات مساعدة للقاعدة البيانات
+    # Database utilities
     def backup_database(self, backup_path: Path) -> bool:
-        """إنشاء نسخة احتياطية من قاعدة البيانات"""
+        """Create a database backup."""
         try:
             import shutil
             shutil.copy2(self.db_path, backup_path)
-            self.logger.info(f"تم إنشاء نسخة احتياطية في: {backup_path}")
+            self.logger.info(f"Created backup at: {backup_path}")
             return True
         except Exception as e:
-            self.logger.error(f"خطأ في إنشاء النسخة الاحتياطية: {e}")
+            self.logger.error(f"Database backup error: {e}")
             return False
     
     def optimize_database(self):
-        """تحسين أداء قاعدة البيانات"""
+        """Optimize database performance."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute("VACUUM")
                 conn.execute("ANALYZE")
-                self.logger.info("تم تحسين قاعدة البيانات")
+                self.logger.info("Database optimized")
         except Exception as e:
-            self.logger.error(f"خطأ في تحسين قاعدة البيانات: {e}")
+            self.logger.error(f"Database optimization error: {e}")
     
     def cleanup_old_data(self, days_to_keep: int = 90):
-        """تنظيف البيانات القديمة"""
+        """Clean up old data."""
         try:
             with sqlite3.connect(self.db_path) as conn:
-                # حذف بيانات المستشعرات القديمة
+                # Remove old sensor data
                 conn.execute('''
                     DELETE FROM sensor_data 
                     WHERE timestamp < datetime('now', ?)
                 ''', (f'-{days_to_keep} days',))
                 
-                # حذف التنبؤات القديمة
+                # Remove old predictions
                 conn.execute('''
                     DELETE FROM predictions 
                     WHERE timestamp < datetime('now', ?)
                 ''', (f'-{days_to_keep} days',))
                 
-                # حذف الإنذارات المحلولة القديمة
+                # Remove old resolved alerts
                 conn.execute('''
                     DELETE FROM alerts 
                     WHERE resolved = TRUE AND resolved_at < datetime('now', ?)
                 ''', (f'-{days_to_keep} days',))
                 
-                # حذف سجل العمليات القديم
+                # Remove old operation logs
                 conn.execute('''
                     DELETE FROM operation_logs 
                     WHERE timestamp < datetime('now', ?)
                 ''', (f'-{days_to_keep * 2} days',))
                 
-                self.logger.info(f"تم تنظيف البيانات الأقدم من {days_to_keep} يوم")
+                self.logger.info(f"Removed data older than {days_to_keep} days")
                 
         except Exception as e:
-            self.logger.error(f"خطأ في تنظيف البيانات القديمة: {e}")
+            self.logger.error(f"Old data cleanup error: {e}")
 
-# إنشاء نسخة عامة من مدير قاعدة البيانات
+# Expose a shared database manager instance
 db_manager = DatabaseManager()
