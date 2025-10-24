@@ -1,5 +1,5 @@
 """
-حزمة الأدوات المساعدة لتطبيق iPump
+Utility package for the iPump application.
 """
 
 from .logger import setup_logger, get_logger

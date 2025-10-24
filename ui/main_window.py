@@ -2,12 +2,12 @@
 Main window for iPump application
 """
 
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                           QTabWidget, QStatusBar, QMessageBox, QToolBar, 
-                           QPushButton, QLabel, QSplitter, QFrame, QMenu,
-                           QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QGridLayout,
-                           QComboBox, QDateEdit, QTextEdit, QListWidget, QListWidgetItem, QGroupBox,
-                           QSpinBox)
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                             QTabWidget, QStatusBar, QMessageBox, QToolBar,
+                             QPushButton, QLabel, QSplitter, QFrame, QMenu,
+                             QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QGridLayout,
+                             QComboBox, QDateEdit, QTextEdit, QListWidget, QListWidgetItem, QGroupBox,
+                             QSpinBox)
 from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QDate, QThread, QSize
 import matplotlib.pyplot as plt
@@ -45,7 +45,7 @@ class MainWindow(QMainWindow):
         self.setup_ui()
         self.setup_timer()
         self.load_initial_data()
-        
+
     def setup_ui(self):
         """Initialize user interface"""
         self.setWindowTitle(APP_CONFIG['name'])
@@ -89,6 +89,37 @@ class MainWindow(QMainWindow):
         # Bottom status bar
         self.create_bottom_status_bar()
         main_layout.addWidget(self.bottom_status_bar)
+
+    @staticmethod
+    def configure_push_button(button: QPushButton, *, accent: bool = False) -> None:
+        """Apply a consistent style to QPushButton instances."""
+        button.setMinimumHeight(44)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setStyleSheet(
+            """
+            QPushButton {
+                background-color: %s;
+                border: 1px solid #1e293b;
+                border-radius: 6px;
+                color: #e2e8f0;
+                font-size: 13px;
+                font-weight: 500;
+                padding: 8px 16px;
+                text-align: center;
+            }
+            QPushButton:hover {
+                background-color: %s;
+            }
+            QPushButton:pressed {
+                background-color: %s;
+            }
+            """
+            % (
+                "#2563eb" if accent else "#1e293b",
+                "#1d4ed8" if accent else "#243447",
+                "#1e40af" if accent else "#1b2533",
+            )
+        )
         
     def create_menubar(self):
         """Create menu bar"""
@@ -137,15 +168,15 @@ class MainWindow(QMainWindow):
         # Window size submenu
         window_menu = view_menu.addMenu("Window Size")
         
-        small_action = QAction("Small (800×600)", self)
+        small_action = QAction("Small (800x600)", self)
         small_action.triggered.connect(lambda: self.set_window_size_preset('small'))
         window_menu.addAction(small_action)
         
-        medium_action = QAction("Medium (1024×768)", self)
+        medium_action = QAction("Medium (1024x768)", self)
         medium_action.triggered.connect(lambda: self.set_window_size_preset('medium'))
         window_menu.addAction(medium_action)
         
-        large_action = QAction("Large (1366×900)", self)
+        large_action = QAction("Large (1366x900)", self)
         large_action.triggered.connect(lambda: self.set_window_size_preset('large'))
         window_menu.addAction(large_action)
         
@@ -193,8 +224,27 @@ class MainWindow(QMainWindow):
         toolbar = QToolBar("Main Toolbar")
         toolbar.setMovable(False)
         toolbar.setIconSize(QSize(32, 32))
+        toolbar.setStyleSheet(
+            """
+            QToolBar {
+                padding: 4px 10px;
+                spacing: 10px;
+            }
+            QToolButton {
+                padding: 6px 14px;
+                margin: 0 4px;
+                font-size: 13px;
+                font-weight: 500;
+                color: #e2e8f0;
+            }
+            QToolButton:hover {
+                background-color: #1e293b;
+                border-radius: 4px;
+            }
+            """
+        )
         self.addToolBar(toolbar)
-        
+
         # File actions
         new_action = QAction("New Project", self)
         new_action.setShortcut("Ctrl+N")
@@ -254,11 +304,13 @@ class MainWindow(QMainWindow):
         title_label.setStyleSheet("color: #1e88e5;")
         
         # System info
-        system_info = QLabel(f"Version: {APP_CONFIG['version']} | {APP_CONFIG['company']}")
+        system_info = QLabel(
+            f"Version: {APP_CONFIG['version']} | {APP_CONFIG['developer']}"
+        )
         system_info.setStyleSheet("color: #90a4ae;")
-        
+
         # Connection status
-        self.connection_status = QLabel("🟢 Connected")
+        self.connection_status = QLabel("Connected")
         self.connection_status.setStyleSheet("color: #51cf66; font-weight: bold;")
         
         top_layout.addWidget(title_label)
@@ -321,69 +373,21 @@ class MainWindow(QMainWindow):
         quick_actions_layout = QVBoxLayout(quick_actions_group)
         
         # Add new pump button
-        self.quick_add_pump_btn = QPushButton("➕ Add New Pump")
+        self.quick_add_pump_btn = QPushButton("Add New Pump")
+        self.configure_push_button(self.quick_add_pump_btn, accent=True)
         self.quick_add_pump_btn.clicked.connect(self.add_new_pump)
-        self.quick_add_pump_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #1e88e5;
-                color: white;
-                padding: 12px;
-                border-radius: 6px;
-                font-weight: bold;
-                text-align: center;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #1565c0;
-            }
-            QPushButton:pressed {
-                background-color: #0d47a1;
-            }
-        """)
         quick_actions_layout.addWidget(self.quick_add_pump_btn)
-        
+
         # Link sensors button
-        self.quick_link_sensors_btn = QPushButton("🔗 Link Sensors to Pumps")
+        self.quick_link_sensors_btn = QPushButton("Link Sensors to Pumps")
+        self.configure_push_button(self.quick_link_sensors_btn)
         self.quick_link_sensors_btn.clicked.connect(self.link_sensors)
-        self.quick_link_sensors_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #51cf66;
-                color: white;
-                padding: 12px;
-                border-radius: 6px;
-                font-weight: bold;
-                text-align: center;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #40a94c;
-            }
-            QPushButton:pressed {
-                background-color: #2f855a;
-            }
-        """)
         quick_actions_layout.addWidget(self.quick_link_sensors_btn)
-        
+
         # Pump manager button
-        self.quick_manage_pumps_btn = QPushButton("⚙️ Manage Pumps")
+        self.quick_manage_pumps_btn = QPushButton("Manage Pumps")
+        self.configure_push_button(self.quick_manage_pumps_btn)
         self.quick_manage_pumps_btn.clicked.connect(self.open_pump_manager)
-        self.quick_manage_pumps_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f59f00;
-                color: white;
-                padding: 12px;
-                border-radius: 6px;
-                font-weight: bold;
-                text-align: center;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #e67700;
-            }
-            QPushButton:pressed {
-                background-color: #b35900;
-            }
-        """)
         quick_actions_layout.addWidget(self.quick_manage_pumps_btn)
         
         layout.addWidget(quick_actions_group)
@@ -414,7 +418,7 @@ class MainWindow(QMainWindow):
         """)
         stats_layout = QVBoxLayout(stats_frame)
         
-        stats_title = QLabel("📊 Quick Statistics")
+        stats_title = QLabel("Quick Statistics")
         stats_title.setStyleSheet("font-weight: bold; color: #e3f2fd; font-size: 14px;")
         stats_layout.addWidget(stats_title)
         
@@ -457,7 +461,7 @@ class MainWindow(QMainWindow):
         """)
         pumps_layout = QVBoxLayout(pumps_frame)
         
-        pumps_title = QLabel("🔧 Active Pumps")
+        pumps_title = QLabel("Active Pumps")
         pumps_title.setStyleSheet("font-weight: bold; color: #e3f2fd; font-size: 14px;")
         pumps_layout.addWidget(pumps_title)
         
@@ -495,7 +499,7 @@ class MainWindow(QMainWindow):
         """)
         alerts_layout = QVBoxLayout(alerts_frame)
         
-        alerts_title = QLabel("🚨 Active Alerts")
+        alerts_title = QLabel("Active Alerts")
         alerts_title.setStyleSheet("font-weight: bold; color: #ff6b6b; font-size: 14px;")
         alerts_layout.addWidget(alerts_title)
         
@@ -541,11 +545,11 @@ class MainWindow(QMainWindow):
         self.reporting_tab = ReportingTab()
         self.settings_tab = SettingsTab()
         
-        self.tab_widget.addTab(self.dashboard_tab, "🏠 Dashboard")
-        self.tab_widget.addTab(self.analytics_tab, "📈 Analytics")
-        self.tab_widget.addTab(self.maintenance_tab, "🔧 Maintenance")
-        self.tab_widget.addTab(self.reporting_tab, "📊 Reports")
-        self.tab_widget.addTab(self.settings_tab, "⚙️ Settings")
+        self.tab_widget.addTab(self.dashboard_tab, "Dashboard")
+        self.tab_widget.addTab(self.analytics_tab, "Analytics")
+        self.tab_widget.addTab(self.maintenance_tab, "Maintenance")
+        self.tab_widget.addTab(self.reporting_tab, "Reports")
+        self.tab_widget.addTab(self.settings_tab, "Settings")
         
         # Customize tab appearance
         self.tab_widget.setStyleSheet("""
@@ -703,14 +707,14 @@ class MainWindow(QMainWindow):
 
             for _, pump in pumps.iterrows():
                 pump_id = pump['id']
-                status_icon = "🟢" if pump['status'] == 'operational' else "🟡" if pump['status'] == 'maintenance' else "🔴"
-                item_text = f"{status_icon} {pump['name']}\n📍 {pump['location']} | ⚡ {pump['sensor_count']} sensors"
+                item_text = self.format_pump_item_text(pump)
 
                 if pump_id in current_items:
                     index, item = current_items[pump_id]
                     if item.text() != item_text:
                         item.setText(item_text)
                         self.update_pump_item_style(item, pump)
+                    item.setData(Qt.ItemDataRole.UserRole + 1, pump['name'])
                     current_items.pop(pump_id)
                 else:
                     self.add_pump_item(pump)
@@ -722,13 +726,26 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.logger.error(f"Error updating pumps list: {e}")
     
+    @staticmethod
+    def format_pump_item_text(pump) -> str:
+        """Return a normalized pump entry representation."""
+        status_label = {
+            'operational': 'Operational',
+            'maintenance': 'Maintenance',
+        }.get(pump['status'], 'Offline')
+        return (
+            f"{pump['name']}\n"
+            f"Status: {status_label} | Location: {pump['location']} | "
+            f"Sensors: {pump['sensor_count']}"
+        )
+
     def add_pump_item(self, pump):
         """Add new pump item"""
-        status_icon = "🟢" if pump['status'] == 'operational' else "🟡" if pump['status'] == 'maintenance' else "🔴"
-        item_text = f"{status_icon} {pump['name']}\n📍 {pump['location']} | ⚡ {pump['sensor_count']} sensors"
-        
+        item_text = self.format_pump_item_text(pump)
+
         item = QListWidgetItem(item_text)
         item.setData(Qt.ItemDataRole.UserRole, pump['id'])
+        item.setData(Qt.ItemDataRole.UserRole + 1, pump['name'])
         self.update_pump_item_style(item, pump)
         self.pumps_list.addItem(item)
     
@@ -747,8 +764,8 @@ class MainWindow(QMainWindow):
             alerts = self.get_cached_data('alerts', db_manager.get_active_alerts)
             
             if alerts.empty:
-                if self.alerts_list.text() != "✅ No active alerts":
-                    self.alerts_list.setText("✅ No active alerts")
+                if self.alerts_list.text() != "No active alerts":
+                    self.alerts_list.setText("No active alerts")
                 return
             
             alerts_text = self.format_alerts_text(alerts)
@@ -761,14 +778,18 @@ class MainWindow(QMainWindow):
     def format_alerts_text(self, alerts):
         """Format alerts text"""
         alerts_text = ""
-        alert_count = 0
         for _, alert in alerts.head(3).iterrows():  # Show only first 3 alerts
-            severity_icon = "🔴" if alert['severity'] == 'high' else "🟡" if alert['severity'] == 'medium' else "🔵"
-            alerts_text += f"{severity_icon} {alert['pump_name']}: {alert['message']}\n"
-            alert_count += 1
-        
+            severity_label = {
+                'high': 'High severity',
+                'medium': 'Medium severity',
+                'low': 'Low severity',
+            }.get(alert['severity'], 'Info')
+            alerts_text += (
+                f"{severity_label}: {alert['pump_name']} - {alert['message']}\n"
+            )
+
         if len(alerts) > 3:
-            alerts_text += f"... ⚠️ and {len(alerts) - 3} more alerts"
+            alerts_text += f"... and {len(alerts) - 3} more alerts"
         
         return alerts_text
     
@@ -783,13 +804,13 @@ class MainWindow(QMainWindow):
                 time_diff = datetime.now().replace(tzinfo=None) - last_update_time.replace(tzinfo=None)
                 
                 if time_diff.total_seconds() < 300:  # Less than 5 minutes
-                    self.connection_status.setText("🟢 Connected")
+                    self.connection_status.setText("Connected")
                     self.connection_status.setStyleSheet("color: #51cf66; font-weight: bold;")
                 else:
-                    self.connection_status.setText("🟡 Weak connection")
+                    self.connection_status.setText("Weak connection")
                     self.connection_status.setStyleSheet("color: #f59f00; font-weight: bold;")
             else:
-                self.connection_status.setText("🔴 Disconnected")
+                self.connection_status.setText("Disconnected")
                 self.connection_status.setStyleSheet("color: #ff6b6b; font-weight: bold;")
                 
         except Exception as e:
@@ -832,7 +853,7 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.bottom_status_bar)
         
         # Add status information
-        self.status_label = QLabel("✅ Ready")
+        self.status_label = QLabel("Ready")
         self.bottom_status_bar.addWidget(self.status_label)
         
         # Add memory information
@@ -857,32 +878,39 @@ class MainWindow(QMainWindow):
     def update_time(self):
         """Update time display"""
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-        self.time_label.setText(f"🕒 {current_time}")
-    
+        self.time_label.setText(f"Time: {current_time}")
+
     def update_memory_usage(self):
         """Update memory usage"""
         try:
             import psutil
             process = psutil.Process()
             memory_usage = process.memory_info().rss / 1024 / 1024  # MB
-            self.memory_label.setText(f"💾 {memory_usage:.1f} MB")
-        except:
-            self.memory_label.setText("💾 -- MB")
+            self.memory_label.setText(f"Memory: {memory_usage:.1f} MB")
+        except Exception:
+            self.memory_label.setText("Memory: -- MB")
     
     def on_pump_selected(self, item):
         """When pump is selected from list"""
         try:
             pump_id = item.data(Qt.ItemDataRole.UserRole)
             self.current_pump_id = pump_id
-            
+
+            pump_name = item.data(Qt.ItemDataRole.UserRole + 1)
+            if not pump_name and item.text():
+                pump_name = item.text().splitlines()[0]
+
             # Update tabs with selected pump
             if hasattr(self.dashboard_tab, 'select_pump'):
                 self.dashboard_tab.select_pump(pump_id)
             if hasattr(self.analytics_tab, 'select_pump'):
                 self.analytics_tab.select_pump(pump_id)
-            
-            self.status_label.setText(f"✅ Selected pump: {item.text().split(' ')[1]}")
-            
+
+            if pump_name:
+                self.status_label.setText(f"Selected pump: {pump_name}")
+            else:
+                self.status_label.setText("Selected pump")
+
         except Exception as e:
             self.logger.error(f"Error selecting pump: {e}")
     
@@ -895,7 +923,7 @@ class MainWindow(QMainWindow):
                 pump_id = db_manager.add_pump(pump_data)
                 
                 if pump_id > 0:
-                    self.status_label.setText(f"✅ Added pump: {pump_data['name']}")
+                    self.status_label.setText(f"Pump added: {pump_data['name']}")
                     # Clear relevant cache
                     self.clear_cache('pumps')
                     self.clear_cache('system_stats')
@@ -918,7 +946,7 @@ class MainWindow(QMainWindow):
         try:
             dialog = LinkSensorsDialog(self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
-                self.status_label.setText("✅ Sensors linked successfully")
+                self.status_label.setText("Sensors linked successfully")
                 # Clear relevant cache
                 self.clear_cache('pumps')
                 self.clear_cache('system_stats')
@@ -934,7 +962,7 @@ class MainWindow(QMainWindow):
         """Open pump manager"""
         try:
             self.tab_widget.setCurrentWidget(self.maintenance_tab)
-            self.status_label.setText("📋 Opening pump manager")
+            self.status_label.setText("Opening pump manager")
         except Exception as e:
             self.logger.error(f"Error opening pump manager: {e}")
     
@@ -942,7 +970,7 @@ class MainWindow(QMainWindow):
         """Open sensor manager"""
         try:
             self.tab_widget.setCurrentWidget(self.maintenance_tab)
-            self.status_label.setText("📡 Opening sensor manager")
+            self.status_label.setText("Opening sensor manager")
         except Exception as e:
             self.logger.error(f"Error opening sensor manager: {e}")
     
@@ -950,7 +978,7 @@ class MainWindow(QMainWindow):
         """Open settings"""
         try:
             self.tab_widget.setCurrentWidget(self.settings_tab)
-            self.status_label.setText("⚙️ Opening settings")
+            self.status_label.setText("Opening settings")
         except Exception as e:
             self.logger.error(f"Error opening settings: {e}")
     
@@ -958,7 +986,7 @@ class MainWindow(QMainWindow):
         """View all alerts"""
         try:
             self.tab_widget.setCurrentWidget(self.analytics_tab)
-            self.status_label.setText("🚨 Viewing all alerts")
+            self.status_label.setText("Viewing all alerts")
         except Exception as e:
             self.logger.error(f"Error viewing alerts: {e}")
     
@@ -980,17 +1008,20 @@ class MainWindow(QMainWindow):
         """Toggle fullscreen mode"""
         if self.isFullScreen():
             self.showNormal()
-            self.status_label.setText("🖥️ Exited fullscreen mode")
+            self.status_label.setText("Exited fullscreen mode")
         else:
             self.showFullScreen()
-            self.status_label.setText("🖥️ Entered fullscreen mode")
+            self.status_label.setText("Entered fullscreen mode")
     
     def show_about(self):
         """Show about information"""
         about_text = f"""
         <h2>{APP_CONFIG['name']}</h2>
         <p><b>Version:</b> {APP_CONFIG['version']}</p>
-        <p><b>Company:</b> {APP_CONFIG['company']}</p>
+        <p><b>Developer:</b> {APP_CONFIG['developer']}</p>
+        <p><b>Location:</b> {APP_CONFIG['location']}</p>
+        <p><b>Phone:</b> {APP_CONFIG['phone']}</p>
+        <p><b>Email:</b> {APP_CONFIG['email']}</p>
         <p><b>Description:</b> {APP_CONFIG['description']}</p>
         <p><b>Copyright:</b> {APP_CONFIG['copyright']}</p>
         <hr>
@@ -1012,26 +1043,26 @@ class MainWindow(QMainWindow):
                                    QMessageBox.StandardButton.No)
         
         if reply == QMessageBox.StandardButton.Yes:
-            self.status_label.setText("🆕 New project created")
+            self.status_label.setText("New project created")
             # Clear all cache
             self.clear_cache()
-            QTimer.singleShot(2000, lambda: self.status_label.setText("✅ Ready"))
-    
+            QTimer.singleShot(2000, lambda: self.status_label.setText("Ready"))
+
     def save_data(self):
         """Save data"""
-        self.status_label.setText("💾 Saving data...")
+        self.status_label.setText("Saving data...")
         # Simulate save process
-        QTimer.singleShot(1500, lambda: self.status_label.setText("✅ Data saved"))
-    
+        QTimer.singleShot(1500, lambda: self.status_label.setText("Data saved"))
+
     def refresh_data(self):
         """Manual data refresh"""
-        self.status_label.setText("🔄 Refreshing data...")
+        self.status_label.setText("Refreshing data...")
         self.clear_cache()
         # Request background update
         self.start_background_update()
         # Light updates
         self.slow_update()
-        QTimer.singleShot(1000, lambda: self.status_label.setText("✅ Data refreshed"))
+        QTimer.singleShot(1000, lambda: self.status_label.setText("Data refreshed"))
     
     def apply_window_size(self, width: int, height: int):
         """Apply window size ensuring limits from config"""
@@ -1043,7 +1074,7 @@ class MainWindow(QMainWindow):
             h = max(min_h, min(height, max_h))
             self.resize(w, h)
             if hasattr(self, 'status_label'):
-                self.status_label.setText(f"Window Size: {w}×{h}")
+                self.status_label.setText(f"Window size: {w}x{h}")
         except Exception as e:
             self.logger.error(f"Error applying window size: {e}")
     
@@ -1140,7 +1171,7 @@ class AddPumpDialog(QDialog):
         layout.addLayout(form_layout)
         
         # Additional information
-        info_label = QLabel("💡 Fields marked with * are required")
+        info_label = QLabel("Fields marked with * are required")
         info_label.setStyleSheet("color: #94a3b8; font-size: 12px; padding: 10px;")
         layout.addWidget(info_label)
         
@@ -1251,7 +1282,7 @@ class LinkSensorsDialog(QDialog):
         layout.addLayout(button_layout)
         
         # Information
-        info_label = QLabel("🔍 Select sensors you want to link to the selected pump")
+        info_label = QLabel("Select the sensors you want to link to the selected pump")
         info_label.setStyleSheet("color: #94a3b8; padding: 10px;")
         layout.addWidget(info_label)
         
@@ -1316,15 +1347,16 @@ class LinkSensorsDialog(QDialog):
         pump_name = self.pump_selector.currentText().split(' - ')[0]
         
         # Show linking summary
-        summary = f"""
-        Linking Summary:
-        
-        Pump: {pump_name}
-        Selected Sensors: {len(selected_sensors)}
-        
-        Selected Sensors:
-        {chr(10).join(['• ' + sensor['sensor_type'] for sensor in selected_sensors])}
-        """
+        summary_lines = [
+            "Linking Summary:",
+            "",
+            f"Pump: {pump_name}",
+            f"Selected Sensors: {len(selected_sensors)}",
+            "",
+            "Selected Sensors:",
+        ]
+        summary_lines.extend([f"- {sensor['sensor_type']}" for sensor in selected_sensors])
+        summary = "\n".join(summary_lines)
         
         reply = QMessageBox.question(
             self, 

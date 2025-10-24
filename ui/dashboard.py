@@ -1,5 +1,5 @@
 """
-لوحة التحكم الرئيسية لتطبيق iPump
+Main dashboard for the iPump application.
 """
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, 
@@ -25,28 +25,28 @@ class DashboardTab(QWidget):
         self.load_pump_data()
         
     def setup_ui(self):
-        """تهيئة واجهة لوحة التحكم"""
+        """Initialize the dashboard interface."""
         main_layout = QVBoxLayout(self)
         
-        # شريط التحكم
+        # Control bar
         control_layout = QHBoxLayout()
         
-        # اختيار المضخة
-        control_layout.addWidget(QLabel("اختر المضخة:"))
+        # Pump selection
+        control_layout.addWidget(QLabel("Select pump:"))
         self.pump_selector = QComboBox()
         self.pump_selector.currentIndexChanged.connect(self.on_pump_changed)
         control_layout.addWidget(self.pump_selector)
         
         control_layout.addStretch()
         
-        # أزرار التحكم
-        self.refresh_btn = QPushButton("تحديث البيانات")
+        # Control buttons
+        self.refresh_btn = QPushButton("Refresh Data")
         self.refresh_btn.clicked.connect(self.refresh_data)
         control_layout.addWidget(self.refresh_btn)
         
         main_layout.addLayout(control_layout)
         
-        # منطقة المحتوى الرئيسية
+        # Main content area
         content_scroll = QScrollArea()
         content_scroll.setWidgetResizable(True)
         content_widget = QWidget()
@@ -54,30 +54,30 @@ class DashboardTab(QWidget):
         content_scroll.setWidget(content_widget)
         main_layout.addWidget(content_scroll)
         
-        # إعداد البنية الشبكية
+        # Configure the grid layout
         self.setup_dashboard_grid()
         
     def setup_dashboard_grid(self):
-        """إعداد الشبكة الرئيسية للوحة التحكم"""
-        # صف 1: مؤشرات الأداء الرئيسية
+        """Configure the main dashboard grid."""
+        # Row 1: Key performance indicators
         self.setup_kpi_row(0)
         
-        # صف 2: الرسوم البيانية للبيانات الحية
+        # Row 2: Live data charts
         self.setup_live_charts_row(1)
         
-        # صف 3: التنبؤات والتوصيات
+        # Row 3: Predictions and recommendations
         self.setup_predictions_row(2)
         
-        # صف 4: الإنذارات والحالة
+        # Row 4: Alerts and status
         self.setup_alerts_row(3)
     
     def setup_kpi_row(self, row):
-        """إعداد مؤشرات الأداء الرئيسية"""
+        """Configure the key performance indicators."""
         kpis = [
-            ("درجة الحرارة", "°C", "temperature", 0, 100),
-            ("الضغط", "بار", "pressure", 0, 200),
-            ("معدل التدفق", "م³/س", "flow_rate", 0, 150),
-            ("استهلاك الطاقة", "ك.و.س", "power_consumption", 0, 100)
+            ("Temperature", "°C", "temperature", 0, 100),
+            ("Pressure", "bar", "pressure", 0, 200),
+            ("Flow rate", "m³/s", "flow_rate", 0, 150),
+            ("Energy consumption", "kWh", "power_consumption", 0, 100)
         ]
         
         for col, (title, unit, key, min_val, max_val) in enumerate(kpis):
@@ -85,7 +85,7 @@ class DashboardTab(QWidget):
             self.content_layout.addWidget(kpi_box, row, col)
     
     def create_kpi_widget(self, title, unit, data_key, min_val, max_val):
-        """إنشاء ويدجت لمؤشر الأداء"""
+        """Create a KPI widget."""
         frame = QFrame()
         frame.setFrameShape(QFrame.Shape.StyledPanel)
         frame.setStyleSheet("""
@@ -99,7 +99,7 @@ class DashboardTab(QWidget):
         
         layout = QVBoxLayout(frame)
         
-        # العنوان
+        # Title
         title_label = QLabel(title)
         title_label.setStyleSheet("""
             QLabel {
@@ -111,7 +111,7 @@ class DashboardTab(QWidget):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
         
-        # القيمة
+        # Value
         value_label = QLabel("--")
         value_label.setObjectName(f"kpi_{data_key}")
         value_font = QFont()
@@ -122,13 +122,13 @@ class DashboardTab(QWidget):
         value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(value_label)
         
-        # الوحدة
+        # Unit
         unit_label = QLabel(unit)
         unit_label.setStyleSheet("color: #94a3b8;")
         unit_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(unit_label)
         
-        # شريط التقدم
+        # Progress bar
         progress = QProgressBar()
         progress.setObjectName(f"progress_{data_key}")
         progress.setRange(min_val, max_val)
@@ -150,30 +150,30 @@ class DashboardTab(QWidget):
         return frame
     
     def setup_live_charts_row(self, row):
-        """إعداد الرسوم البيانية للبيانات الحية"""
-        # رسم بياني لدرجة الحرارة والضغط
-        temp_pressure_chart = self.create_live_chart("درجة الحرارة والضغط", 
-                                                   ["الحرارة", "الضغط"])
+        """Configure the live data charts."""
+        # Chart for temperature and pressure
+        temp_pressure_chart = self.create_live_chart("Temperature and Pressure", 
+                                                   ["Temperature", "Pressure"])
         self.content_layout.addWidget(temp_pressure_chart, row, 0, 1, 2)
         
-        # رسم بياني للاهتزازات
-        vibration_chart = self.create_live_chart("الاهتزازات", 
-                                               ["محور X", "محور Y", "محور Z"])
+        # Chart for vibrations
+        vibration_chart = self.create_live_chart("Vibrations", 
+                                               ["Axis X", "Axis Y", "Axis Z"])
         self.content_layout.addWidget(vibration_chart, row, 2, 1, 2)
     
     def create_live_chart(self, title, legends):
-        """إنشاء رسم بياني للبيانات الحية"""
+        """Create a live data chart widget."""
         group_box = QGroupBox(title)
         layout = QVBoxLayout(group_box)
         
-        # إنشاء عنصر الرسم البياني
+        # Create the chart widget
         plot_widget = pg.PlotWidget()
         plot_widget.setBackground('#0f172a')
         plot_widget.showGrid(x=True, y=True, alpha=0.3)
-        plot_widget.setLabel('left', 'القيمة')
-        plot_widget.setLabel('bottom', 'الزمن')
+        plot_widget.setLabel('left', 'Value')
+        plot_widget.setLabel('bottom', 'Time')
         
-        # إعداد المنحنيات
+        # Configure the curves
         curves = []
         colors = ['#1e88e5', '#ff6b6b', '#51cf66']
         for i, legend in enumerate(legends):
@@ -181,7 +181,7 @@ class DashboardTab(QWidget):
             curve.setData([], [])
             curves.append(curve)
         
-        # حفظ المرجع للاستخدام لاحقاً
+        # Store references for later use
         if not hasattr(self, 'charts'):
             self.charts = {}
         self.charts[title] = curves
@@ -190,21 +190,21 @@ class DashboardTab(QWidget):
         return group_box
     
     def setup_predictions_row(self, row):
-        """إعداد منطقة التنبؤات والتوصيات"""
-        # تنبؤ الفشل
+        """Configure the predictions and recommendations area."""
+        # Failure prediction
         prediction_box = self.create_prediction_widget()
         self.content_layout.addWidget(prediction_box, row, 0, 1, 2)
         
-        # التوصيات
+        # Recommendations
         recommendations_box = self.create_recommendations_widget()
         self.content_layout.addWidget(recommendations_box, row, 2, 1, 2)
     
     def create_prediction_widget(self):
-        """إنشاء ويدجت تنبؤ الفشل"""
-        group_box = QGroupBox("تنبؤ الفشل")
+        """Create a failure prediction widget."""
+        group_box = QGroupBox("Failure prediction")
         layout = QVBoxLayout(group_box)
         
-        # احتمالية الفشل
+        # Failure probability
         self.failure_prob_label = QLabel("--")
         self.failure_prob_label.setObjectName("failure_probability")
         prob_font = QFont()
@@ -215,8 +215,8 @@ class DashboardTab(QWidget):
         self.failure_prob_label.setStyleSheet("color: #1e88e5;")
         layout.addWidget(self.failure_prob_label)
         
-        # مستوى الخطورة
-        self.risk_level_label = QLabel("غير معروف")
+        # Risk level
+        self.risk_level_label = QLabel("Unknown")
         self.risk_level_label.setObjectName("risk_level")
         self.risk_level_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.risk_level_label.setStyleSheet("""
@@ -229,8 +229,8 @@ class DashboardTab(QWidget):
         """)
         layout.addWidget(self.risk_level_label)
         
-        # نوع الفشل المتوقع
-        self.failure_type_label = QLabel("لا توجد تنبؤات متاحة")
+        # Predicted failure type
+        self.failure_type_label = QLabel("No predictions available")
         self.failure_type_label.setObjectName("failure_type")
         self.failure_type_label.setWordWrap(True)
         self.failure_type_label.setStyleSheet("color: #94a3b8;")
@@ -239,11 +239,11 @@ class DashboardTab(QWidget):
         return group_box
     
     def create_recommendations_widget(self):
-        """إنشاء ويدجت التوصيات"""
-        group_box = QGroupBox("التوصيات")
+        """Create a recommendations widget."""
+        group_box = QGroupBox("Recommendations")
         layout = QVBoxLayout(group_box)
         
-        self.recommendations_label = QLabel("جاري تحميل التوصيات...")
+        self.recommendations_label = QLabel("Loading recommendations...")
         self.recommendations_label.setObjectName("recommendations")
         self.recommendations_label.setWordWrap(True)
         self.recommendations_label.setStyleSheet("""
@@ -260,18 +260,18 @@ class DashboardTab(QWidget):
         return group_box
     
     def setup_alerts_row(self, row):
-        """إعداد منطقة الإنذارات والحالة"""
-        # حالة المضخة
+        """Configure the alerts and status area."""
+        # Pump status
         status_box = self.create_pump_status_widget()
         self.content_layout.addWidget(status_box, row, 0, 1, 2)
         
-        # الإنذارات الحديثة
+        # Recent alerts
         alerts_box = self.create_recent_alerts_widget()
         self.content_layout.addWidget(alerts_box, row, 2, 1, 2)
     
     def create_pump_status_widget(self):
-        """إنشاء ويدجت حالة المضخة"""
-        group_box = QGroupBox("حالة المضخة")
+        """Create a pump status widget."""
+        group_box = QGroupBox("Pump status")
         layout = QVBoxLayout(group_box)
         
         self.pump_status_label = QLabel("--")
@@ -283,14 +283,14 @@ class DashboardTab(QWidget):
         self.pump_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.pump_status_label)
         
-        # معلومات إضافية
+        # Additional information
         info_layout = QGridLayout()
         
         labels = [
-            ("ساعات التشغيل:", "operating_hours"),
-            ("مستوى الزيت:", "oil_level"),
-            ("جودة الزيت:", "oil_quality"),
-            ("آخر صيانة:", "last_maintenance")
+            ("Operating hours:", "operating_hours"),
+            ("Oil level:", "oil_level"),
+            ("Oil quality:", "oil_quality"),
+            ("Last maintenance:", "last_maintenance")
         ]
         
         for i, (label_text, key) in enumerate(labels):
@@ -304,11 +304,11 @@ class DashboardTab(QWidget):
         return group_box
     
     def create_recent_alerts_widget(self):
-        """إنشاء ويدجت الإنذارات الحديثة"""
-        group_box = QGroupBox("الإنذارات الحديثة")
+        """Create a recent alerts widget."""
+        group_box = QGroupBox("Recent alerts")
         layout = QVBoxLayout(group_box)
         
-        self.alerts_text = QLabel("لا توجد إنذارات")
+        self.alerts_text = QLabel("No alerts")
         self.alerts_text.setObjectName("recent_alerts")
         self.alerts_text.setWordWrap(True)
         self.alerts_text.setStyleSheet("""
@@ -325,7 +325,7 @@ class DashboardTab(QWidget):
         return group_box
     
     def load_pump_data(self):
-        """تحميل بيانات المضخات"""
+        """Load pump data."""
         try:
             pumps = db_manager.get_pumps()
             self.pump_selector.clear()
@@ -333,41 +333,41 @@ class DashboardTab(QWidget):
             for _, pump in pumps.iterrows():
                 self.pump_selector.addItem(pump['name'], pump['id'])
             
-            # تحديث البيانات للمضخة المحددة
+            # Refresh data for the selected pump
             self.update_pump_display()
             
         except Exception as e:
-            print(f"خطأ في تحميل بيانات المضخات: {e}")
+            print(f"Error loading pump data: {e}")
     
     def on_pump_changed(self, index):
-        """عند تغيير المضخة المحددة"""
+        """Handle pump selection changes."""
         if index >= 0:
             self.selected_pump_id = self.pump_selector.itemData(index)
             self.update_pump_display()
     
     def update_pump_display(self):
-        """تحديث عرض بيانات المضخة"""
+        """Update the pump data display."""
         try:
-            # محاكاة بيانات المستشعرات
+            # Simulate sensor data
             sensor_data = self.generate_sensor_data()
             
-            # تحديث مؤشرات الأداء
+            # Refresh KPIs
             self.update_kpi_values(sensor_data)
             
-            # تحديث الرسوم البيانية
+            # Update charts
             self.update_live_charts(sensor_data)
             
-            # تحديث التنبؤات
+            # Update predictions
             self.update_predictions(sensor_data)
             
-            # تحديث حالة المضخة
+            # Update pump status
             self.update_pump_status(sensor_data)
             
         except Exception as e:
-            print(f"خطأ في تحديث عرض المضخة: {e}")
+            print(f"Error updating pump display: {e}")
     
     def generate_sensor_data(self):
-        """توليد بيانات مستشعرات محاكاة"""
+        """Generate simulated sensor data."""
         return {
             'vibration_x': random.uniform(1.5, 6.0),
             'vibration_y': random.uniform(1.8, 5.8),
@@ -383,7 +383,7 @@ class DashboardTab(QWidget):
         }
     
     def update_kpi_values(self, sensor_data):
-        """تحديث قيم مؤشرات الأداء"""
+        """Update KPI values."""
         kpi_mapping = {
             'temperature': sensor_data['temperature'],
             'pressure': sensor_data['pressure'],
@@ -401,9 +401,9 @@ class DashboardTab(QWidget):
                 progress.setValue(int(value))
     
     def update_live_charts(self, sensor_data):
-        """تحديث الرسوم البيانية الحية"""
-        # تحديث بيانات الاهتزازات
-        if 'الاهتزازات' in self.charts:
+        """Update live charts."""
+        # Update vibration data
+        if 'Vibrations' in self.charts:
             time_data = np.linspace(0, 10, 50)
             vib_data = [
                 sensor_data['vibration_x'] + np.random.normal(0, 0.2, 50),
@@ -411,38 +411,38 @@ class DashboardTab(QWidget):
                 sensor_data['vibration_z'] + np.random.normal(0, 0.2, 50)
             ]
             
-            for i, curve in enumerate(self.charts['الاهتزازات']):
+            for i, curve in enumerate(self.charts['Vibrations']):
                 curve.setData(time_data, vib_data[i])
         
-        # تحديث بيانات الحرارة والضغط
-        if 'درجة الحرارة والضغط' in self.charts:
+        # Update temperature and pressure data
+        if 'Temperature and Pressure' in self.charts:
             time_data = np.linspace(0, 10, 50)
             temp_pressure_data = [
                 sensor_data['temperature'] + np.random.normal(0, 1, 50),
                 sensor_data['pressure'] + np.random.normal(0, 2, 50)
             ]
             
-            for i, curve in enumerate(self.charts['درجة الحرارة والضغط']):
+            for i, curve in enumerate(self.charts['Temperature and Pressure']):
                 curve.setData(time_data, temp_pressure_data[i])
     
     def update_predictions(self, sensor_data):
-        """تحديث التنبؤات والتوصيات"""
+        """Update predictions and recommendations."""
         try:
-            # الحصول على التنبؤ من النموذج
+            # Retrieve prediction from the model
             prediction = failure_predictor.predict_failure(sensor_data)
             
-            # تحديث احتمالية الفشل
+            # Update failure probability
             prob_percent = prediction['failure_probability'] * 100
             self.failure_prob_label.setText(f"{prob_percent:.1f}%")
             
-            # تحديث مستوى الخطورة
+            # Update risk level
             risk_level = prediction['risk_level']
             self.risk_level_label.setText(risk_level)
             
-            # تلوين مستوى الخطورة
-            if risk_level == "منخفض":
+            # Color the risk level
+            if risk_level == "Low":
                 color = "#51cf66"
-            elif risk_level == "متوسط":
+            elif risk_level == "Medium":
                 color = "#f59f00"
             else:
                 color = "#ff6b6b"
@@ -458,44 +458,44 @@ class DashboardTab(QWidget):
                 }}
             """)
             
-            # تحديث نوع الفشل
+            # Update failure type
             self.failure_type_label.setText(prediction['predicted_failure_type'])
             
-            # تحديث التوصيات
+            # Update recommendations
             recommendations_text = "\n".join([f"• {rec}" for rec in prediction['recommendations']])
             self.recommendations_label.setText(recommendations_text)
             
         except Exception as e:
-            print(f"خطأ في تحديث التنبؤات: {e}")
+            print(f"Error updating predictions: {e}")
     
     def update_pump_status(self, sensor_data):
-        """تحديث حالة المضخة"""
+        """Update pump status."""
         try:
-            # تحديث الحالة العامة
-            status = "تعمل بشكل طبيعي"
+            # Update overall status
+            status = "Operating normally"
             status_color = "#51cf66"
             
             if sensor_data['temperature'] > 80:
-                status = "ارتفاع في درجة الحرارة"
+                status = "High temperature detected"
                 status_color = "#f59f00"
             if sensor_data['oil_level'] < 0.4:
-                status = "انخفاض مستوى الزيت"
+                status = "Low oil level"
                 status_color = "#ff6b6b"
             if any(v > 5.0 for v in [sensor_data['vibration_x'], 
                                     sensor_data['vibration_y'], 
                                     sensor_data['vibration_z']]):
-                status = "اهتزازات عالية"
+                status = "High vibrations"
                 status_color = "#ff6b6b"
             
             self.pump_status_label.setText(status)
             self.pump_status_label.setStyleSheet(f"color: {status_color};")
             
-            # تحديث المعلومات الإضافية
+            # Update additional information
             info_mapping = {
-                'operating_hours': f"{sensor_data['operating_hours']:.0f} ساعة",
+                'operating_hours': f"{sensor_data['operating_hours']:.0f} hours",
                 'oil_level': f"{sensor_data['oil_level']*100:.1f}%",
                 'oil_quality': f"{sensor_data['oil_quality']*100:.1f}%",
-                'last_maintenance': "قبل 2 أسبوع"  # محاكاة
+                'last_maintenance': "2 weeks ago"  # Simulation
             }
             
             for key, value in info_mapping.items():
@@ -503,32 +503,32 @@ class DashboardTab(QWidget):
                 if label:
                     label.setText(value)
             
-            # تحديث الإنذارات
+            # Update alerts
             self.update_alerts_display(sensor_data)
             
         except Exception as e:
-            print(f"خطأ في تحديث حالة المضخة: {e}")
+            print(f"Error updating pump status: {e}")
     
     def update_alerts_display(self, sensor_data):
-        """تحديث عرض الإنذارات"""
+        """Update the alerts display."""
         alerts = []
         
         if sensor_data['temperature'] > 80:
-            alerts.append("درجة الحرارة مرتفعة")
+            alerts.append("Temperature is high")
         if sensor_data['oil_level'] < 0.4:
-            alerts.append("مستوى الزيت منخفض")
+            alerts.append("Oil level is low")
         if sensor_data['oil_quality'] < 0.6:
-            alerts.append("جودة الزيت متدهورة")
+            alerts.append("Oil quality degraded")
         if sensor_data['bearing_temperature'] > 85:
-            alerts.append("ارتفاع حرارة المحامل")
+            alerts.append("High bearing temperature")
         
         if alerts:
             alerts_text = "\n".join([f"• {alert}" for alert in alerts])
         else:
-            alerts_text = "لا توجد إنذارات"
+            alerts_text = "No alerts"
         
         self.alerts_text.setText(alerts_text)
     
     def refresh_data(self):
-        """تحديث البيانات يدوياً"""
+        """Refresh data manually."""
         self.update_pump_display()

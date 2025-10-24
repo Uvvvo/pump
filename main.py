@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""
-iPump - نظام التنبؤ بفشل المضخات النفطية باستخدام الذكاء الاصطناعي
-المطور: فريق الهندسة والذكاء الاصطناعي
+"""iPump - Intelligent pump failure prediction system.
+
+Application developer: Hussein Abdullah
+Phone: 07813563139
+Location: Dhi Qar, Iraq
+Email: ah343238@gmail.com
 """
 
 import sys
@@ -22,34 +25,34 @@ class iPumpApp:
         self.main_window = MainWindow()
         
     def setup_application(self):
-        """تهيئة إعدادات التطبيق"""
-        # تعيين الخط العام
+        """Configure global application settings."""
+        # Configure default font
         font = QFont("Segoe UI", 10)
         self.app.setFont(font)
-        
-        # تطبيق الثيم الداكن
+
+        # Apply the dark theme
         self.app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt6'))
-        
-        # تعيين أيقونة التطبيق
+
+        # Set application icon when available
         if os.path.exists("assets/icon.png"):
             self.app.setWindowIcon(QIcon("assets/icon.png"))
-        
-        # إعداد نظام التسجيل
+
+        # Initialize logging
         self.logger = setup_logger()
-        self.logger.info("تم تشغيل تطبيق iPump")
-        
+        self.logger.info("iPump application started")
+
     def run(self):
-        """تشغيل التطبيق"""
+        """Start the Qt event loop."""
         self.main_window.show()
         return self.app.exec()
 
 def main():
-    """الدالة الرئيسية"""
+    """Entry point of the application."""
     try:
         ipump_app = iPumpApp()
         sys.exit(ipump_app.run())
     except Exception as e:
-        print(f"خطأ في تشغيل التطبيق: {e}")
+        print(f"Application failed to start: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
