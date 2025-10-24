@@ -7,7 +7,11 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QSplitter, QFrame, QMenu,
                              QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QGridLayout,
                              QComboBox, QDateEdit, QTextEdit, QListWidget, QListWidgetItem, QGroupBox,
+ codex/fix-program-comments-and-layout-k7g1qm
                              QSpinBox, QScrollArea, QSizePolicy)
+
+                             QSpinBox)
+ main
 from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QDate, QThread, QSize
 import matplotlib.pyplot as plt
@@ -400,7 +404,11 @@ class MainWindow(QMainWindow):
         self.quick_manage_pumps_btn.clicked.connect(self.open_pump_manager)
         quick_actions_layout.addWidget(self.quick_manage_pumps_btn)
         
+ codex/fix-program-comments-and-layout-k7g1qm
         layout.addWidget(quick_actions_group)
+
+        layout.addWidget(quick_actions_group)
+ main
         
         # Quick stats
         self.setup_quick_stats(layout)
