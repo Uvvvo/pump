@@ -78,7 +78,7 @@ SYSTEM_CONFIG = {
 # Pump Settings
 PUMP_CONFIG = {
     'critical_temperature': 85,  # Celsius
-    'max_vibration': 7.5,  # m/s²
+    'max_vibration': 7.5,  # m/s^2
     'min_oil_level': 0.2,  # 20%
     'maintenance_interval': 720  # hours
 }
@@ -93,10 +93,10 @@ SENSOR_CONFIG = {
         'bearing_temperature'
     ],
     'measurement_units': {
-        'vibration': 'm/s²',
-        'temperature': '°C',
+        'vibration': 'm/s^2',
+        'temperature': 'C',
         'pressure': 'bar',
-        'flow_rate': 'm³/h',
+        'flow_rate': 'm3/h',
         'power_consumption': 'kW',
         'oil_level': '%',
         'oil_quality': '%'
@@ -107,6 +107,10 @@ APP_CONFIG = {
     'name': 'iPump - Intelligent Pump Failure Prediction System',
     'version': '1.0.0',
     'description': 'An integrated system for predicting pump failure using AI.',
-    'company': 'Advanced Engineering Co.',
-    'copyright': f'© {datetime.now().year} All Rights Reserved'
+    'developer': 'Hussein Abdullah',
+    'phone': '07813563139',
+    'location': 'Dhi Qar, Iraq',
+    'email': 'ah343238@gmail.com',
+    'company': 'Hussein Abdullah',
+    'copyright': f'Copyright {datetime.now().year} Hussein Abdullah'
 }

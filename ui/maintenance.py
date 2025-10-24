@@ -1,5 +1,5 @@
 """
-وحدة إدارة الصيانة لتطبيق iPump - مع إضافة إدارة المضخات
+Maintenance management module for the iPump application with pump administration.
 """
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -24,19 +24,19 @@ class MaintenanceTab(QWidget):
         self.load_maintenance_data()
         
     def setup_ui(self):
-        """تهيئة واجهة إدارة الصيانة مع إضافة إدارة المضخات"""
+        """Set up the maintenance interface with pump management features."""
         main_layout = QVBoxLayout(self)
         
-        # شريط التحكم
+        # Control bar
         control_layout = QHBoxLayout()
         
-        control_layout.addWidget(QLabel("المضخة:"))
+        control_layout.addWidget(QLabel("Pump:"))
         self.pump_selector = QComboBox()
         self.pump_selector.currentIndexChanged.connect(self.on_pump_changed)
         control_layout.addWidget(self.pump_selector)
         
-        # أزرار إدارة المضخات الجديدة
-        self.add_pump_btn = QPushButton("إضافة مضخة جديدة")
+        # New pump management buttons
+        self.add_pump_btn = QPushButton("Add new pump")
         self.add_pump_btn.clicked.connect(self.show_add_pump_dialog)
         self.add_pump_btn.setStyleSheet("""
             QPushButton {
@@ -52,7 +52,7 @@ class MaintenanceTab(QWidget):
         """)
         control_layout.addWidget(self.add_pump_btn)
         
-        self.link_sensors_btn = QPushButton("ربط الحساسات")
+        self.link_sensors_btn = QPushButton("Link sensors")
         self.link_sensors_btn.clicked.connect(self.show_link_sensors_dialog)
         self.link_sensors_btn.setStyleSheet("""
             QPushButton {
@@ -68,70 +68,70 @@ class MaintenanceTab(QWidget):
         """)
         control_layout.addWidget(self.link_sensors_btn)
         
-        self.add_maintenance_btn = QPushButton("إضافة صيانة جديدة")
+        self.add_maintenance_btn = QPushButton("Add new maintenance")
         self.add_maintenance_btn.clicked.connect(self.show_add_maintenance_dialog)
         control_layout.addWidget(self.add_maintenance_btn)
         
-        self.refresh_btn = QPushButton("تحديث")
+        self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.clicked.connect(self.load_maintenance_data)
         control_layout.addWidget(self.refresh_btn)
         
         control_layout.addStretch()
         main_layout.addLayout(control_layout)
         
-        # تبويبات الصيانة مع إضافة تبويب إدارة المضخات
+        # Maintenance tabs with the additional pump management tab
         self.maintenance_tabs = QTabWidget()
         
-        # تبويب إدارة المضخات (جديد)
+        # Pump management tab (new)
         self.pumps_management_tab = self.create_pumps_management_tab()
-        self.maintenance_tabs.addTab(self.pumps_management_tab, "إدارة المضخات")
+        self.maintenance_tabs.addTab(self.pumps_management_tab, "Pump management")
         
-        # تبويب جدول الصيانة
+        # Maintenance schedule tab
         self.schedule_tab = self.create_schedule_tab()
-        self.maintenance_tabs.addTab(self.schedule_tab, "جدول الصيانة")
+        self.maintenance_tabs.addTab(self.schedule_tab, "Maintenance schedule")
         
-        # تبويب سجل الصيانة
+        # Maintenance history tab
         self.history_tab = self.create_history_tab()
-        self.maintenance_tabs.addTab(self.history_tab, "سجل الصيانة")
+        self.maintenance_tabs.addTab(self.history_tab, "Maintenance history")
         
-        # تبويب التحليل الوقائي
+        # Preventive analysis tab
         self.predictive_tab = self.create_predictive_tab()
-        self.maintenance_tabs.addTab(self.predictive_tab, "التحليل الوقائي")
+        self.maintenance_tabs.addTab(self.predictive_tab, "Preventive analysis")
         
         main_layout.addWidget(self.maintenance_tabs)
         
     def create_pumps_management_tab(self):
-        """إنشاء تبويب إدارة المضخات الجديد"""
+        """Create the pump management tab."""
         widget = QWidget()
         layout = QHBoxLayout(widget)
         
-        # تقسيم الشاشة إلى قسمين
+        # Split the view into two sections
         splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # القسم الأيسر: قائمة المضخات
-        pumps_list_group = QGroupBox("قائمة المضخات")
+        # Left section: pump list
+        pumps_list_group = QGroupBox("Pump list")
         pumps_list_layout = QVBoxLayout(pumps_list_group)
         
-        # أزرار التحكم في المضخات
+        # Pump control buttons
         pumps_control_layout = QHBoxLayout()
         
-        self.refresh_pumps_btn = QPushButton("تحديث القائمة")
+        self.refresh_pumps_btn = QPushButton("Refresh list")
         self.refresh_pumps_btn.clicked.connect(self.load_pumps_list)
         pumps_control_layout.addWidget(self.refresh_pumps_btn)
         
-        self.export_pumps_btn = QPushButton("تصدير البيانات")
+        self.export_pumps_btn = QPushButton("Export data")
         self.export_pumps_btn.clicked.connect(self.export_pumps_data)
         pumps_control_layout.addWidget(self.export_pumps_btn)
         
         pumps_control_layout.addStretch()
         pumps_list_layout.addLayout(pumps_control_layout)
         
-        # جدول المضخات
+        # Pumps table
         self.pumps_table = QTableWidget()
         self.pumps_table.setColumnCount(6)
         self.pumps_table.setHorizontalHeaderLabels([
-            "المعرف", "اسم المضخة", "الموقع", "النوع", 
-            "تاريخ التركيب", "الحالة"
+            "ID", "Pump name", "Location", "Type", 
+            "Installation date", "Status"
         ])
         self.pumps_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.pumps_table.doubleClicked.connect(self.on_pump_double_clicked)
@@ -139,12 +139,12 @@ class MaintenanceTab(QWidget):
         
         splitter.addWidget(pumps_list_group)
         
-        # القسم الأيمن: تفاصيل المضخة والحساسات
-        details_group = QGroupBox("تفاصيل المضخة والحساسات")
+        # Right section: pump and sensor details
+        details_group = QGroupBox("Pump and sensor details")
         details_layout = QVBoxLayout(details_group)
         
-        # معلومات المضخة
-        pump_info_group = QGroupBox("معلومات المضخة")
+        # Pump information
+        pump_info_group = QGroupBox("Pump information")
         pump_info_layout = QFormLayout(pump_info_group)
         
         self.selected_pump_name = QLabel("--")
@@ -153,29 +153,29 @@ class MaintenanceTab(QWidget):
         self.selected_pump_installation = QLabel("--")
         self.selected_pump_status = QLabel("--")
         
-        pump_info_layout.addRow("اسم المضخة:", self.selected_pump_name)
-        pump_info_layout.addRow("الموقع:", self.selected_pump_location)
-        pump_info_layout.addRow("النوع:", self.selected_pump_type)
-        pump_info_layout.addRow("تاريخ التركيب:", self.selected_pump_installation)
-        pump_info_layout.addRow("الحالة:", self.selected_pump_status)
+        pump_info_layout.addRow("Pump name:", self.selected_pump_name)
+        pump_info_layout.addRow("Location:", self.selected_pump_location)
+        pump_info_layout.addRow("Type:", self.selected_pump_type)
+        pump_info_layout.addRow("Installation date:", self.selected_pump_installation)
+        pump_info_layout.addRow("Status:", self.selected_pump_status)
         
         details_layout.addWidget(pump_info_group)
         
-        # الحساسات المرتبطة
-        sensors_group = QGroupBox("الحساسات المرتبطة")
+        # Linked sensors
+        sensors_group = QGroupBox("Linked sensors")
         sensors_layout = QVBoxLayout(sensors_group)
         
         self.sensors_list = QListWidget()
         sensors_layout.addWidget(self.sensors_list)
         
-        # أزرار إدارة الحساسات
+        # Sensor management buttons
         sensors_buttons_layout = QHBoxLayout()
         
-        self.add_sensor_btn = QPushButton("إضافة حساس")
+        self.add_sensor_btn = QPushButton("Add sensor")
         self.add_sensor_btn.clicked.connect(self.show_add_sensor_dialog)
         sensors_buttons_layout.addWidget(self.add_sensor_btn)
         
-        self.remove_sensor_btn = QPushButton("إزالة حساس")
+        self.remove_sensor_btn = QPushButton("Remove sensor")
         self.remove_sensor_btn.clicked.connect(self.remove_sensor)
         sensors_buttons_layout.addWidget(self.remove_sensor_btn)
         
@@ -186,32 +186,32 @@ class MaintenanceTab(QWidget):
         
         splitter.addWidget(details_group)
         
-        # تعيين نسب التقسيم
+        # Set splitter ratios
         splitter.setSizes([400, 300])
         layout.addWidget(splitter)
         
         return widget
     
     def create_schedule_tab(self):
-        """إنشاء تبويب جدول الصيانة"""
+        """Create the scheduled maintenance tab."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         
-        # جدول الصيانة المجدولة
+        # Maintenance schedule
         self.schedule_table = QTableWidget()
         self.schedule_table.setColumnCount(7)
         self.schedule_table.setHorizontalHeaderLabels([
-            "المعرف", "المضخة", "نوع الصيانة", "التاريخ المجدول",
-            "الحالة", "الفني", "الإجراءات"
+            "ID", "Pump", "Maintenance type", "Scheduled date",
+            "Status", "Technician", "Actions"
         ])
         self.schedule_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         
         layout.addWidget(self.schedule_table)
         
-        # إحصائيات الصيانة
+        # Maintenance statistics
         stats_layout = QHBoxLayout()
         
-        self.maintenance_stats_group = QGroupBox("إحصائيات الصيانة")
+        self.maintenance_stats_group = QGroupBox("Maintenance statistics")
         stats_inner_layout = QGridLayout(self.maintenance_stats_group)
         
         self.scheduled_count = QLabel("0")
@@ -219,13 +219,13 @@ class MaintenanceTab(QWidget):
         self.completed_count = QLabel("0")
         self.overdue_count = QLabel("0")
         
-        stats_inner_layout.addWidget(QLabel("المجداولة:"), 0, 0)
+        stats_inner_layout.addWidget(QLabel("Scheduled:"), 0, 0)
         stats_inner_layout.addWidget(self.scheduled_count, 0, 1)
-        stats_inner_layout.addWidget(QLabel("قيد التنفيذ:"), 0, 2)
+        stats_inner_layout.addWidget(QLabel("In progress:"), 0, 2)
         stats_inner_layout.addWidget(self.in_progress_count, 0, 3)
-        stats_inner_layout.addWidget(QLabel("المكتملة:"), 1, 0)
+        stats_inner_layout.addWidget(QLabel("Completed:"), 1, 0)
         stats_inner_layout.addWidget(self.completed_count, 1, 1)
-        stats_inner_layout.addWidget(QLabel("المتأخرة:"), 1, 2)
+        stats_inner_layout.addWidget(QLabel("Overdue:"), 1, 2)
         stats_inner_layout.addWidget(self.overdue_count, 1, 3)
         
         stats_layout.addWidget(self.maintenance_stats_group)
@@ -236,38 +236,38 @@ class MaintenanceTab(QWidget):
         return widget
     
     def create_history_tab(self):
-        """إنشاء تبويب سجل الصيانة"""
+        """Create the maintenance history tab."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         
-        # فلتر السجل
+        # History filters
         filter_layout = QHBoxLayout()
         
-        filter_layout.addWidget(QLabel("من:"))
+        filter_layout.addWidget(QLabel("From:"))
         self.history_date_from = QDateEdit()
         self.history_date_from.setDate(QDate.currentDate().addMonths(-6))
         self.history_date_from.setCalendarPopup(True)
         filter_layout.addWidget(self.history_date_from)
         
-        filter_layout.addWidget(QLabel("إلى:"))
+        filter_layout.addWidget(QLabel("To:"))
         self.history_date_to = QDateEdit()
         self.history_date_to.setDate(QDate.currentDate())
         self.history_date_to.setCalendarPopup(True)
         filter_layout.addWidget(self.history_date_to)
         
-        self.filter_btn = QPushButton("تصفية")
+        self.filter_btn = QPushButton("Filter")
         self.filter_btn.clicked.connect(self.load_maintenance_history)
         filter_layout.addWidget(self.filter_btn)
         
         filter_layout.addStretch()
         layout.addLayout(filter_layout)
         
-        # جدول سجل الصيانة
+        # Maintenance history table
         self.history_table = QTableWidget()
         self.history_table.setColumnCount(8)
         self.history_table.setHorizontalHeaderLabels([
-            "المعرف", "المضخة", "نوع الصيانة", "التاريخ المجدول",
-            "تاريخ الإنجاز", "التكلفة", "الأجزاء المستبدلة", "الفني"
+            "ID", "Pump", "Maintenance type", "Scheduled date",
+            "Completion date", "Cost", "Replaced parts", "Technician"
         ])
         self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         
@@ -276,12 +276,12 @@ class MaintenanceTab(QWidget):
         return widget
     
     def create_predictive_tab(self):
-        """إنشاء تبويب التحليل الوقائي"""
+        """Create the preventive analysis tab."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         
-        # توصيات الصيانة الوقائية
-        recommendations_group = QGroupBox("توصيات الصيانة الوقائية")
+        # Preventive maintenance recommendations
+        recommendations_group = QGroupBox("Preventive maintenance recommendations")
         recommendations_layout = QVBoxLayout(recommendations_group)
         
         self.recommendations_text = QTextEdit()
@@ -290,8 +290,8 @@ class MaintenanceTab(QWidget):
         
         layout.addWidget(recommendations_group)
         
-        # تحليل تكاليف الصيانة
-        cost_analysis_group = QGroupBox("تحليل تكاليف الصيانة")
+        # Maintenance cost analysis
+        cost_analysis_group = QGroupBox("Maintenance cost analysis")
         cost_layout = QVBoxLayout(cost_analysis_group)
         
         self.cost_analysis_text = QTextEdit()
@@ -303,7 +303,7 @@ class MaintenanceTab(QWidget):
         return widget
     
     def load_maintenance_data(self):
-        """تحميل بيانات الصيانة"""
+        """Load maintenance data."""
         self.load_pumps()
         self.load_pumps_list()
         self.load_maintenance_schedule()
@@ -312,7 +312,7 @@ class MaintenanceTab(QWidget):
         self.update_maintenance_stats()
     
     def load_pumps(self):
-        """تحميل قائمة المضخات للكومبوبوكس"""
+        """Load pumps into the combo box."""
         pumps = db_manager.get_pumps()
         self.pump_selector.clear()
         
@@ -320,7 +320,7 @@ class MaintenanceTab(QWidget):
             self.pump_selector.addItem(pump['name'], pump['id'])
     
     def load_pumps_list(self):
-        """تحميل قائمة المضخات للجدول"""
+        """Load pumps into the table."""
         try:
             pumps = db_manager.get_pumps()
             self.pumps_table.setRowCount(len(pumps))
@@ -335,32 +335,32 @@ class MaintenanceTab(QWidget):
                 status_item = QTableWidgetItem(pump['status'])
                 if pump['status'] == 'operational':
                     status_item.setBackground(QColor(81, 207, 102, 100))
-                    status_item.setText("تعمل")
+                    status_item.setText("Operational")
                 elif pump['status'] == 'maintenance':
                     status_item.setBackground(QColor(255, 179, 0, 100))
-                    status_item.setText("صيانة")
+                    status_item.setText("Maintenance")
                 else:
                     status_item.setBackground(QColor(255, 107, 107, 100))
-                    status_item.setText("متوقفة")
+                    status_item.setText("Stopped")
                 
                 self.pumps_table.setItem(row, 5, status_item)
                 
         except Exception as e:
-            print(f"خطأ في تحميل قائمة المضخات: {e}")
+            print(f"Error loading pump list: {e}")
     
     def on_pump_changed(self, index):
-        """عند تغيير المضخة المحددة"""
+        """Handle selected pump changes."""
         if index >= 0:
             self.load_maintenance_schedule()
     
     def on_pump_double_clicked(self, index):
-        """عند النقر المزدوج على مضخة في الجدول"""
+        """Handle pump double-clicks in the table."""
         row = index.row()
         pump_id = self.pumps_table.item(row, 0).text()
         self.load_pump_details(int(pump_id))
     
     def load_pump_details(self, pump_id):
-        """تحميل تفاصيل المضخة المحددة"""
+        """Load details for the selected pump."""
         try:
             pumps = db_manager.get_pumps()
             pump = pumps[pumps['id'] == pump_id].iloc[0]
@@ -370,32 +370,32 @@ class MaintenanceTab(QWidget):
             self.selected_pump_type.setText(pump['type'])
             self.selected_pump_installation.setText(pump['installation_date'])
             
-            status_text = "تعمل" if pump['status'] == 'operational' else "صيانة" if pump['status'] == 'maintenance' else "متوقفة"
+            status_text = "Operational" if pump['status'] == 'operational' else "Maintenance" if pump['status'] == 'maintenance' else "Stopped"
             status_color = "#51cf66" if pump['status'] == 'operational' else "#f59f00" if pump['status'] == 'maintenance' else "#ff6b6b"
             
             self.selected_pump_status.setText(status_text)
             self.selected_pump_status.setStyleSheet(f"color: {status_color}; font-weight: bold;")
             
-            # تحميل الحساسات المرتبطة
+            # Load linked sensors
             self.load_pump_sensors(pump_id)
             
         except Exception as e:
-            print(f"خطأ في تحميل تفاصيل المضخة: {e}")
+            print(f"Error loading pump details: {e}")
     
     def load_pump_sensors(self, pump_id):
-        """تحميل الحساسات المرتبطة بالمضخة"""
+        """Load sensors linked to the pump."""
         try:
             self.sensors_list.clear()
             
-            # محاكاة بيانات الحساسات (في التطبيق الحقيقي، سيتم جلبها من قاعدة البيانات)
+            # Simulate sensor data (replace with database queries in production)
             sample_sensors = [
-                f"حساس الاهتزاز X (SENSOR_VIB_X_{pump_id})",
-                f"حساس الاهتزاز Y (SENSOR_VIB_Y_{pump_id})",
-                f"حساس الاهتزاز Z (SENSOR_VIB_Z_{pump_id})",
-                f"حساس درجة الحرارة (SENSOR_TEMP_{pump_id})",
-                f"حساس الضغط (SENSOR_PRESS_{pump_id})",
-                f"حساس التدفق (SENSOR_FLOW_{pump_id})",
-                f"حساس مستوى الزيت (SENSOR_OIL_{pump_id})"
+                f"Sensor Vibration X (SENSOR_VIB_X_{pump_id})",
+                f"Sensor Vibration Y (SENSOR_VIB_Y_{pump_id})",
+                f"Sensor Vibration Z (SENSOR_VIB_Z_{pump_id})",
+                f"Temperature sensor (SENSOR_TEMP_{pump_id})",
+                f"Pressure sensor (SENSOR_PRESS_{pump_id})",
+                f"Sensor Flow (SENSOR_FLOW_{pump_id})",
+                f"Oil level sensor (SENSOR_OIL_{pump_id})"
             ]
             
             for sensor in sample_sensors:
@@ -404,61 +404,61 @@ class MaintenanceTab(QWidget):
                 self.sensors_list.addItem(item)
                 
         except Exception as e:
-            print(f"خطأ في تحميل الحساسات: {e}")
+            print(f"Error loading sensors: {e}")
     
     def show_add_pump_dialog(self):
-        """عرض نافذة إضافة مضخة جديدة"""
+        """Show the add pump dialog."""
         dialog = AddPumpDialog(self)
         if dialog.exec():
             self.load_maintenance_data()
-            QMessageBox.information(self, "تم", "تم إضافة المضخة بنجاح")
+            QMessageBox.information(self, "Done", "Pump added successfully")
     
     def show_link_sensors_dialog(self):
-        """عرض نافذة ربط الحساسات"""
+        """Show the sensor linking dialog."""
         dialog = LinkSensorsDialog(self)
         if dialog.exec():
-            QMessageBox.information(self, "تم", "تم ربط الحساسات بنجاح")
+            QMessageBox.information(self, "Done", "Sensors linked successfully")
     
     def show_add_sensor_dialog(self):
-        """عرض نافذة إضافة حساس"""
+        """Show the add sensor dialog."""
         if self.sensors_list.count() == 0:
-            QMessageBox.warning(self, "تحذير", "يرجى تحديد مضخة أولاً")
+            QMessageBox.warning(self, "Warning", "Please select a pump first")
             return
         
         dialog = AddSensorDialog(self)
         if dialog.exec():
-            # إعادة تحميل الحساسات للمضخة المحددة
+            # Reload sensors for the selected pump
             current_item = self.sensors_list.currentItem()
             if current_item:
                 pump_id = current_item.data(Qt.ItemDataRole.UserRole)
                 self.load_pump_sensors(pump_id)
     
     def remove_sensor(self):
-        """إزالة الحساس المحدد"""
+        """Remove the selected sensor."""
         current_item = self.sensors_list.currentItem()
         if not current_item:
-            QMessageBox.warning(self, "تحذير", "يرجى تحديد حساس لإزالته")
+            QMessageBox.warning(self, "Warning", "Please select a sensor to remove")
             return
         
         sensor_name = current_item.text()
         reply = QMessageBox.question(
             self, 
-            "تأكيد الإزالة", 
-            f"هل تريد إزالة الحساس '{sensor_name}'؟",
+            "Confirm removal", 
+            f"Do you want to remove the sensor '{sensor_name}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
         if reply == QMessageBox.StandardButton.Yes:
             row = self.sensors_list.row(current_item)
             self.sensors_list.takeItem(row)
-            QMessageBox.information(self, "تم", "تم إزالة الحساس بنجاح")
+            QMessageBox.information(self, "Done", "Sensor removed successfully")
     
     def export_pumps_data(self):
-        """تصدير بيانات المضخات"""
+        """Export pump data."""
         try:
             file_path, _ = QFileDialog.getSaveFileName(
                 self, 
-                "تصدير بيانات المضخات", 
+                "Export pump data", 
                 f"pumps_data_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 "CSV Files (*.csv)"
             )
@@ -466,21 +466,21 @@ class MaintenanceTab(QWidget):
             if file_path:
                 pumps = db_manager.get_pumps()
                 pumps.to_csv(file_path, index=False, encoding='utf-8')
-                QMessageBox.information(self, "تم", f"تم تصدير البيانات إلى: {file_path}")
+                QMessageBox.information(self, "Done", f"Done Export data To: {file_path}")
                 
         except Exception as e:
-            QMessageBox.warning(self, "خطأ", f"خطأ في تصدير البيانات: {e}")
+            QMessageBox.warning(self, "Error", f"Error exporting data: {e}")
     
-    # باقي الدوال تبقى كما هي (مع بعض التعديلات الطفيفة)
+    # Remaining methods stay the same with minor adjustments
     def load_maintenance_schedule(self):
-        """تحميل جدول الصيانة"""
+        """Load the maintenance schedule."""
         try:
-            # محاكاة بيانات الصيانة المجدولة
+            # Simulate scheduled maintenance data
             sample_schedule = [
-                (1, "مضخة المصفاة الرئيسية", "صيانة دورية", "2024-01-15", "مجدولة", "أحمد محمد", ""),
-                (2, "مضخة النقل رقم 1", "استبدال زيت", "2024-01-20", "قيد التنفيذ", "محمد علي", ""),
-                (3, "مضخة التغذية الرئيسية", "فحص محامل", "2024-01-25", "مجدولة", "فادي أحمد", ""),
-                (4, "مضخة الخدمة المساعدة", "تنظيف فلاتر", "2024-02-01", "متأخرة", "خالد حسن", "")
+                (1, "Refinery main pump", "Routine maintenance", "2024-01-15", "Scheduled", "Ahmed Mohammed", ""),
+                (2, "Transfer pump 1", "Oil replacement", "2024-01-20", "In progress", "Mohammed Ali", ""),
+                (3, "Main feed pump", "Bearing inspection", "2024-01-25", "Scheduled", "Fadi Ahmed", ""),
+                (4, "Auxiliary service pump", "Filter cleaning", "2024-02-01", "Overdue", "Khalid Hassan", "")
             ]
             
             self.schedule_table.setRowCount(len(sample_schedule))
@@ -492,30 +492,30 @@ class MaintenanceTab(QWidget):
                 self.schedule_table.setItem(row, 3, QTableWidgetItem(date))
                 
                 status_item = QTableWidgetItem(status)
-                if status == "متأخرة":
+                if status == "Overdue":
                     status_item.setBackground(QColor(255, 107, 107, 100))
-                elif status == "قيد التنفيذ":
+                elif status == "In progress":
                     status_item.setBackground(QColor(255, 179, 0, 100))
-                elif status == "مجدولة":
+                elif status == "Scheduled":
                     status_item.setBackground(QColor(81, 207, 102, 100))
                 
                 self.schedule_table.setItem(row, 4, status_item)
                 self.schedule_table.setItem(row, 5, QTableWidgetItem(technician))
                 
-                # أزرار الإجراءات
+                # Action buttons
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout(actions_widget)
                 
-                if status == "مجدولة":
-                    start_btn = QPushButton("بدء")
+                if status == "Scheduled":
+                    start_btn = QPushButton("Start")
                     start_btn.clicked.connect(lambda checked, r=row: self.start_maintenance(r))
                     actions_layout.addWidget(start_btn)
                 
-                complete_btn = QPushButton("إكمال")
+                complete_btn = QPushButton("Complete")
                 complete_btn.clicked.connect(lambda checked, r=row: self.complete_maintenance(r))
                 actions_layout.addWidget(complete_btn)
                 
-                delete_btn = QPushButton("حذف")
+                delete_btn = QPushButton("Delete")
                 delete_btn.clicked.connect(lambda checked, r=row: self.delete_maintenance(r))
                 actions_layout.addWidget(delete_btn)
                 
@@ -523,17 +523,17 @@ class MaintenanceTab(QWidget):
                 self.schedule_table.setCellWidget(row, 6, actions_widget)
                 
         except Exception as e:
-            print(f"خطأ في تحميل جدول الصيانة: {e}")
+            print(f"Error loading maintenance schedule: {e}")
     
     def load_maintenance_history(self):
-        """تحميل سجل الصيانة"""
+        """Load maintenance history"""
         try:
-            # محاكاة سجل الصيانة
+            # Simulate maintenance history
             sample_history = [
-                (1, "مضخة المصفاة الرئيسية", "صيانة دورية", "2023-12-15", "2023-12-15", "1500", "فلتر زيت، شمعات", "أحمد محمد"),
-                (2, "مضخة النقل رقم 1", "استبدال محامل", "2023-11-20", "2023-11-21", "3500", "محامل، أختام", "محمد علي"),
-                (3, "مضخة التغذية الرئيسية", "تنظيف نظام", "2023-10-10", "2023-10-10", "800", "مواد تنظيف", "فادي أحمد"),
-                (4, "مضخة الخدمة المساعدة", "صيانة وقائية", "2023-09-05", "2023-09-05", "1200", "زيت، فلاتر", "خالد حسن")
+                (1, "Refinery main pump", "Routine maintenance", "2023-12-15", "2023-12-15", "1500", "Oil filter, cartridges", "Ahmed Mohammed"),
+                (2, "Transfer pump 1", "Bearing replacement", "2023-11-20", "2023-11-21", "3500", "Bearings, seals", "Mohammed Ali"),
+                (3, "Main feed pump", "System cleaning", "2023-10-10", "2023-10-10", "800", "Cleaning materials", "Fadi Ahmed"),
+                (4, "Auxiliary service pump", "Preventive maintenance", "2023-09-05", "2023-09-05", "1200", "Oil, filters", "Khalid Hassan")
             ]
             
             self.history_table.setRowCount(len(sample_history))
@@ -549,155 +549,155 @@ class MaintenanceTab(QWidget):
                 self.history_table.setItem(row, 7, QTableWidgetItem(technician))
                 
         except Exception as e:
-            print(f"خطأ في تحميل سجل الصيانة: {e}")
+            print(f"Error loading maintenance history: {e}")
     
     def update_predictive_analysis(self):
-        """تحديث التحليل الوقائي"""
+        """Refresh the preventive analysis."""
         try:
-            # توليد توصيات الصيانة الوقائية
+            # Generate preventive maintenance recommendations
             recommendations = [
-                "• فحص وتغيير زيت المضخة كل 2000 ساعة تشغيل",
-                "• تنظيف الفلاتر كل 500 ساعة تشغيل",
-                "• فحص المحامل والاهتزازات أسبوعياً",
-                "• معايرة أجهزة الاستشعار شهرياً",
-                "• فحص نظام التبريد والتهوية أسبوعياً"
+                "• Inspect and replace pump oil every 2000 operating hours",
+                "• Clean filters every 500 operating hours",
+                "• Inspect bearings and vibrations weekly",
+                "• Calibrate sensors monthly",
+                "• Check the cooling and ventilation system weekly"
             ]
             
-            recommendations_text = "التوصيات الوقائية:\n\n" + "\n".join(recommendations)
+            recommendations_text = "Preventive recommendations:\n\n" + "\n".join(recommendations)
             self.recommendations_text.setText(recommendations_text)
             
-            # تحليل التكاليف
+            # Analyze costs
             cost_analysis = """
-تحليل تكاليف الصيانة:
+Maintenance cost analysis:
 
-• متوسط تكلفة الصيانة الدورية: 1,200 ريال
-• متوسط تكلفة الإصلاحات الطارئة: 3,500 ريال
-• توفير وقائي محتمل: 40% من تكاليف الإصلاحات الطارئة
-• العمر الافتراضي المتوقع للمضخات: 5 سنوات مع الصيانة الوقائية
+• Average routine maintenance cost: 1,200 SAR
+• Average emergency repair cost: 3,500 SAR
+• Potential preventive savings: 40% of emergency repair costs
+• Estimated pump lifespan: 5 years with preventive maintenance
 
-التوصية: تنفيذ برنامج الصيانة الوقائية يمكن أن يخفض التكاليف بنسبة 25%
+Recommendation: Implementing the preventive maintenance program can reduce costs by 25%
             """
             
             self.cost_analysis_text.setText(cost_analysis)
             
         except Exception as e:
-            print(f"خطأ في تحديث التحليل الوقائي: {e}")
+            print(f"Error refreshing preventive analysis: {e}")
     
     def update_maintenance_stats(self):
-        """تحديث إحصائيات الصيانة"""
+        """Refresh maintenance statistics."""
         try:
-            # محاكاة الإحصائيات
+            # Simulate statistics
             self.scheduled_count.setText("3")
             self.in_progress_count.setText("1")
             self.completed_count.setText("12")
             self.overdue_count.setText("1")
             
         except Exception as e:
-            print(f"خطأ في تحديث إحصائيات الصيانة: {e}")
+            print(f"Error refreshing maintenance statistics: {e}")
     
     def show_add_maintenance_dialog(self):
-        """عرض نافذة إضافة صيانة جديدة"""
+        """Show the add maintenance dialog."""
         dialog = AddMaintenanceDialog(self)
         if dialog.exec():
             self.load_maintenance_schedule()
     
     def start_maintenance(self, row):
-        """بدء عملية صيانة"""
+        """Start a maintenance operation."""
         try:
             pump_name = self.schedule_table.item(row, 1).text()
-            QMessageBox.information(self, "بدء الصيانة", f"تم بدء صيانة {pump_name}")
+            QMessageBox.information(self, "Start maintenance", f"Maintenance started for {pump_name}")
             
-            # تحديث الحالة في الواجهة
-            status_item = QTableWidgetItem("قيد التنفيذ")
+            # Refresh UI status
+            status_item = QTableWidgetItem("In progress")
             status_item.setBackground(QColor(255, 179, 0, 100))
             self.schedule_table.setItem(row, 4, status_item)
             
         except Exception as e:
-            QMessageBox.warning(self, "خطأ", f"خطأ في بدء الصيانة: {e}")
+            QMessageBox.warning(self, "Error", f"Error starting maintenance: {e}")
     
     def complete_maintenance(self, row):
-        """إكمال عملية صيانة"""
+        """Complete a maintenance operation."""
         try:
             pump_name = self.schedule_table.item(row, 1).text()
             
-            reply = QMessageBox.question(self, "إكمال الصيانة",
-                                       f"هل تريد تأكيد إكمال صيانة {pump_name}؟",
+            reply = QMessageBox.question(self, "Complete maintenance",
+                                       f"Confirm completing maintenance for {pump_name}?",
                                        QMessageBox.StandardButton.Yes | 
                                        QMessageBox.StandardButton.No)
             
             if reply == QMessageBox.StandardButton.Yes:
-                QMessageBox.information(self, "تم الإكمال", f"تم إكمال صيانة {pump_name}")
-                # إزالة من الجدول وإضافة إلى السجل
+                QMessageBox.information(self, "Completed", f"Maintenance for {pump_name} completed")
+                # Remove from table and add to history
                 self.schedule_table.removeRow(row)
                 
         except Exception as e:
-            QMessageBox.warning(self, "خطأ", f"خطأ في إكمال الصيانة: {e}")
+            QMessageBox.warning(self, "Error", f"Error completing maintenance: {e}")
     
     def delete_maintenance(self, row):
-        """حذف عملية صيانة"""
+        """Delete a maintenance operation."""
         try:
             pump_name = self.schedule_table.item(row, 1).text()
             
-            reply = QMessageBox.question(self, "حذف الصيانة",
-                                       f"هل تريد تأكيد حذف صيانة {pump_name}؟",
+            reply = QMessageBox.question(self, "Delete maintenance",
+                                       f"Confirm deleting maintenance for {pump_name}?",
                                        QMessageBox.StandardButton.Yes | 
                                        QMessageBox.StandardButton.No)
             
             if reply == QMessageBox.StandardButton.Yes:
                 self.schedule_table.removeRow(row)
-                QMessageBox.information(self, "تم الحذف", f"تم حذف صيانة {pump_name}")
+                QMessageBox.information(self, "Deleted", f"Deleted maintenance for {pump_name}")
                 
         except Exception as e:
-            QMessageBox.warning(self, "خطأ", f"خطأ في حذف الصيانة: {e}")
+            QMessageBox.warning(self, "Error", f"Error deleting maintenance: {e}")
     
     def refresh_data(self):
-        """تحديث البيانات"""
+        """Refresh data."""
         self.load_maintenance_data()
 
 class AddPumpDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("إضافة مضخة جديدة")
+        self.setWindowTitle("Add new pump")
         self.setModal(True)
         self.setup_ui()
         
     def setup_ui(self):
-        """تهيئة واجهة إضافة مضخة"""
+        """Set up the add pump interface."""
         layout = QFormLayout(self)
         
-        # حقل اسم المضخة
+        # Pump name field
         self.pump_name = QLineEdit()
-        self.pump_name.setPlaceholderText("أدخل اسم المضخة")
-        layout.addRow("اسم المضخة:", self.pump_name)
+        self.pump_name.setPlaceholderText("Enter pump name")
+        layout.addRow("Pump name:", self.pump_name)
         
-        # حقل الموقع
+        # Location field
         self.pump_location = QLineEdit()
-        self.pump_location.setPlaceholderText("أدخل موقع المضخة")
-        layout.addRow("الموقع:", self.pump_location)
+        self.pump_location.setPlaceholderText("Enter pump location")
+        layout.addRow("Location:", self.pump_location)
         
-        # حقل النوع
+        # Type field
         self.pump_type = QComboBox()
-        self.pump_type.addItems(["طرد مركزي", "مكبسية", "تغذية", "خدمة مساعدة", "نقل"])
-        layout.addRow("نوع المضخة:", self.pump_type)
+        self.pump_type.addItems(["Centrifugal", "Reciprocating", "Feed", "Service support", "Transfer"])
+        layout.addRow("Pump type:", self.pump_type)
         
-        # حقل تاريخ التركيب
+        # Installation date field
         self.installation_date = QDateEdit()
         self.installation_date.setDate(QDate.currentDate())
         self.installation_date.setCalendarPopup(True)
-        layout.addRow("تاريخ التركيب:", self.installation_date)
+        layout.addRow("Installation date:", self.installation_date)
         
-        # حقل الحالة
+        # Status field
         self.pump_status = QComboBox()
-        self.pump_status.addItems(["تعمل", "صيانة", "متوقفة"])
-        layout.addRow("الحالة:", self.pump_status)
+        self.pump_status.addItems(["Operational", "Maintenance", "Stopped"])
+        layout.addRow("Status:", self.pump_status)
         
-        # حقل معلومات إضافية
+        # Additional information field
         self.pump_notes = QTextEdit()
         self.pump_notes.setMaximumHeight(100)
-        self.pump_notes.setPlaceholderText("ملاحظات إضافية عن المضخة...")
-        layout.addRow("ملاحظات:", self.pump_notes)
+        self.pump_notes.setPlaceholderText("Additional notes about the pump...")
+        layout.addRow("Notes:", self.pump_notes)
         
-        # أزرار الحفظ والإلغاء
+        # Save and cancel buttons
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
             QDialogButtonBox.StandardButton.Cancel
@@ -707,24 +707,24 @@ class AddPumpDialog(QDialog):
         layout.addRow(button_box)
         
     def get_pump_data(self):
-        """الحصول على بيانات المضخة المدخلة"""
+        """Retrieve the entered pump data."""
         return {
             'name': self.pump_name.text(),
             'location': self.pump_location.text(),
             'type': self.pump_type.currentText(),
             'installation_date': self.installation_date.date().toString("yyyy-MM-dd"),
-            'status': 'operational' if self.pump_status.currentText() == "تعمل" else 'maintenance' if self.pump_status.currentText() == "صيانة" else 'stopped',
+            'status': 'operational' if self.pump_status.currentText() == "Operational" else 'maintenance' if self.pump_status.currentText() == "Maintenance" else 'stopped',
             'notes': self.pump_notes.toPlainText()
         }
     
     def accept(self):
-        """عند النقر على موافق"""
+        """Handle confirmation clicks."""
         if not self.pump_name.text().strip():
-            QMessageBox.warning(self, "تحذير", "يرجى إدخال اسم المضخة")
+            QMessageBox.warning(self, "Warning", "Please enter a pump name")
             return
         
         if not self.pump_location.text().strip():
-            QMessageBox.warning(self, "تحذير", "يرجى إدخال موقع المضخة")
+            QMessageBox.warning(self, "Warning", "Please enter a pump location")
             return
         
         super().accept()
@@ -732,47 +732,47 @@ class AddPumpDialog(QDialog):
 class LinkSensorsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("ربط الحساسات بالمضخات")
+        self.setWindowTitle("Link sensors to pumps")
         self.setModal(True)
         self.setMinimumWidth(500)
         self.setup_ui()
         
     def setup_ui(self):
-        """تهيئة واجهة ربط الحساسات"""
+        """Set up the sensor linking interface."""
         layout = QVBoxLayout(self)
         
-        # قسم اختيار المضخة
-        pump_group = QGroupBox("اختيار المضخة")
+        # Pump selection section
+        pump_group = QGroupBox("Select pump")
         pump_layout = QFormLayout(pump_group)
         
         self.pump_selector = QComboBox()
-        # تحميل المضخات من قاعدة البيانات
+        # Load pumps from the database
         pumps = db_manager.get_pumps()
         for _, pump in pumps.iterrows():
             self.pump_selector.addItem(pump['name'], pump['id'])
         
-        pump_layout.addRow("المضخة:", self.pump_selector)
+        pump_layout.addRow("Pump:", self.pump_selector)
         layout.addWidget(pump_group)
         
-        # قسم الحساسات المتاحة
-        sensors_group = QGroupBox("الحساسات المتاحة للربط")
+        # Available sensors section
+        sensors_group = QGroupBox("Sensors available for linking")
         sensors_layout = QVBoxLayout(sensors_group)
         
-        # قائمة الحساسات
+        # Sensor list
         self.sensors_list = QListWidget()
         
-        # إضافة أنواع الحساسات المتاحة
+        # Add available sensor types
         available_sensors = [
-            "حساس الاهتزاز X - قياس الاهتزاز في المحور X",
-            "حساس الاهتزاز Y - قياس الاهتزاز في المحور Y", 
-            "حساس الاهتزاز Z - قياس الاهتزاز في المحور Z",
-            "حساس درجة الحرارة - قياس درجة حرارة المضخة",
-            "حساس الضغط - قياس ضغط التشغيل",
-            "حساس التدفق - قياس معدل التدفق",
-            "حساس مستوى الزيت - قياس مستوى زيت التشحيم",
-            "حساس جودة الزيت - قياس جودة زيت التشحيم",
-            "حساس استهلاك الطاقة - قياس استهلاك الطاقة",
-            "حساس حرارة المحامل - قياس درجة حرارة المحامل"
+            "Sensor Vibration X - measures vibration on the X axis",
+            "Sensor Vibration Y - measures vibration on the Y axis", 
+            "Sensor Vibration Z - measures vibration on the Z axis",
+            "Temperature sensor - measures pump temperature",
+            "Pressure sensor - measures operating pressure",
+            "Flow sensor - measures flow rate",
+            "Oil level sensor - measures lubricant level",
+            "Oil quality sensor - measures lubricant quality",
+            "Energy consumption sensor - measures energy usage",
+            "Bearing temperature sensor - measures bearing temperature"
         ]
         
         for sensor in available_sensors:
@@ -783,42 +783,42 @@ class LinkSensorsDialog(QDialog):
         sensors_layout.addWidget(self.sensors_list)
         layout.addWidget(sensors_group)
         
-        # قسم إعدادات الحساسات
-        settings_group = QGroupBox("إعدادات الحساس")
+        # Sensor settings section
+        settings_group = QGroupBox("Sensor settings")
         settings_layout = QFormLayout(settings_group)
         
         self.sensor_id = QLineEdit()
-        self.sensor_id.setPlaceholderText("سيتم توليده تلقائياً")
-        settings_layout.addRow("معرف الحساس:", self.sensor_id)
+        self.sensor_id.setPlaceholderText("Will be generated automatically")
+        settings_layout.addRow("Sensor ID:", self.sensor_id)
         
         self.sampling_rate = QSpinBox()
         self.sampling_rate.setRange(1, 1000)
         self.sampling_rate.setValue(10)
-        self.sampling_rate.setSuffix(" هرتز")
-        settings_layout.addRow("معدل أخذ العينات:", self.sampling_rate)
+        self.sampling_rate.setSuffix(" Hz")
+        settings_layout.addRow("Sampling rate:", self.sampling_rate)
         
         self.calibration_date = QDateEdit()
         self.calibration_date.setDate(QDate.currentDate())
         self.calibration_date.setCalendarPopup(True)
-        settings_layout.addRow("تاريخ المعايرة:", self.calibration_date)
+        settings_layout.addRow("Calibration date:", self.calibration_date)
         
         layout.addWidget(settings_group)
         
-        # أزرار التحكم
+        # Control buttons
         button_layout = QHBoxLayout()
         
-        self.select_all_btn = QPushButton("تحديد الكل")
+        self.select_all_btn = QPushButton("Select all")
         self.select_all_btn.clicked.connect(self.select_all_sensors)
         button_layout.addWidget(self.select_all_btn)
         
-        self.deselect_all_btn = QPushButton("إلغاء التحديد")
+        self.deselect_all_btn = QPushButton("Clear selection")
         self.deselect_all_btn.clicked.connect(self.deselect_all_sensors)
         button_layout.addWidget(self.deselect_all_btn)
         
         button_layout.addStretch()
         layout.addLayout(button_layout)
         
-        # أزرار الحفظ والإلغاء
+        # Save and cancel buttons
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
             QDialogButtonBox.StandardButton.Cancel
@@ -828,19 +828,19 @@ class LinkSensorsDialog(QDialog):
         layout.addWidget(button_box)
         
     def select_all_sensors(self):
-        """تحديد جميع الحساسات"""
+        """Select all sensors."""
         for i in range(self.sensors_list.count()):
             item = self.sensors_list.item(i)
             item.setCheckState(Qt.CheckState.Checked)
     
     def deselect_all_sensors(self):
-        """إلغاء تحديد جميع الحساسات"""
+        """Deselect all sensors."""
         for i in range(self.sensors_list.count()):
             item = self.sensors_list.item(i)
             item.setCheckState(Qt.CheckState.Unchecked)
     
     def get_selected_sensors(self):
-        """الحصول على الحساسات المحددة"""
+        """Retrieve the selected sensors."""
         selected_sensors = []
         for i in range(self.sensors_list.count()):
             item = self.sensors_list.item(i)
@@ -849,92 +849,92 @@ class LinkSensorsDialog(QDialog):
         return selected_sensors
     
     def accept(self):
-        """عند النقر على موافق"""
+        """Handle confirmation clicks."""
         selected_sensors = self.get_selected_sensors()
         if not selected_sensors:
-            QMessageBox.warning(self, "تحذير", "يرجى تحديد حساس واحد على الأقل")
+            QMessageBox.warning(self, "Warning", "Please select at least one sensor")
             return
         
         pump_name = self.pump_selector.currentText()
         pump_id = self.pump_selector.currentData()
         
-        # عرض ملخص الربط
+        # Show link summary
         summary = f"""
-        ملخص عملية الربط:
+        Link summary:
         
-        المضخة: {pump_name}
-        عدد الحساسات المحددة: {len(selected_sensors)}
-        معدل أخذ العينات: {self.sampling_rate.value()} هرتز
-        تاريخ المعايرة: {self.calibration_date.date().toString("yyyy-MM-dd")}
+        Pump: {pump_name}
+        Selected sensors: {len(selected_sensors)}
+        Sampling rate: {self.sampling_rate.value()} Hz
+        Calibration date: {self.calibration_date.date().toString("yyyy-MM-dd")}
         
-        الحساسات المحددة:
+        Selected sensors:
         {chr(10).join(['• ' + sensor for sensor in selected_sensors])}
         """
         
         reply = QMessageBox.question(
             self, 
-            "تأكيد الربط", 
-            summary + "\nهل تريد متابعة عملية الربط؟",
+            "Confirm linking", 
+            summary + "\nDo you want to continue linking?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
         if reply == QMessageBox.StandardButton.Yes:
-            # هنا سيتم تنفيذ عملية الربط الفعلية مع قاعدة البيانات
+            # Execute the actual linking with the database here
             super().accept()
 
 class AddSensorDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("إضافة حساس جديد")
+        self.setWindowTitle("Add sensor")
         self.setModal(True)
         self.setup_ui()
         
     def setup_ui(self):
-        """تهيئة واجهة إضافة حساس"""
+        """Set up the add sensor interface."""
         layout = QFormLayout(self)
         
-        # نوع الحساس
+        # Sensor type field
         self.sensor_type = QComboBox()
         self.sensor_type.addItems([
-            "اهتزاز X", "اهتزاز Y", "اهتزاز Z",
-            "درجة حرارة", "ضغط", "تدفق",
-            "مستوى زيت", "جودة زيت", "استهلاك طاقة",
-            "حرارة محامل"
+            "Vibration X", "Vibration Y", "Vibration Z",
+            "Temperature", "Pressure", "Flow",
+            "Oil level", "Oil quality", "Energy consumption",
+            "Bearing temperature"
         ])
-        layout.addRow("نوع الحساس:", self.sensor_type)
+        layout.addRow("Sensor type:", self.sensor_type)
         
-        # معرف الحساس
+        # Sensor ID field
         self.sensor_id = QLineEdit()
-        self.sensor_id.setPlaceholderText("مثال: SENSOR_VIB_X_001")
-        layout.addRow("معرف الحساس:", self.sensor_id)
+        self.sensor_id.setPlaceholderText("Example: SENSOR_VIB_X_001")
+        layout.addRow("Sensor ID:", self.sensor_id)
         
-        # النموذج
+        # Model field
         self.sensor_model = QLineEdit()
-        self.sensor_model.setPlaceholderText("مثال: VIB-1000X")
-        layout.addRow("النموذج:", self.sensor_model)
+        self.sensor_model.setPlaceholderText("Example: VIB-1000X")
+        layout.addRow("Model:", self.sensor_model)
         
-        # الشركة المصنعة
+        # Manufacturer field
         self.sensor_manufacturer = QLineEdit()
-        self.sensor_manufacturer.setPlaceholderText("مثال: Siemens")
-        layout.addRow("الشركة المصنعة:", self.sensor_manufacturer)
+        self.sensor_manufacturer.setPlaceholderText("Example: Siemens")
+        layout.addRow("Manufacturer:", self.sensor_manufacturer)
         
-        # نطاق القياس
+        # Measurement range field
         self.measurement_range = QLineEdit()
-        self.measurement_range.setPlaceholderText("مثال: 0-100 m/s²")
-        layout.addRow("نطاق القياس:", self.measurement_range)
+        self.measurement_range.setPlaceholderText("Example: 0-100 m/s²")
+        layout.addRow("Measurement range:", self.measurement_range)
         
-        # الدقة
+        # Accuracy field
         self.accuracy = QLineEdit()
-        self.accuracy.setPlaceholderText("مثال: ±0.5%")
-        layout.addRow("الدقة:", self.accuracy)
+        self.accuracy.setPlaceholderText("Example: ±0.5%")
+        layout.addRow("Accuracy:", self.accuracy)
         
-        # تاريخ التركيب
+        # Installation date
         self.installation_date = QDateEdit()
         self.installation_date.setDate(QDate.currentDate())
         self.installation_date.setCalendarPopup(True)
-        layout.addRow("تاريخ التركيب:", self.installation_date)
+        layout.addRow("Installation date:", self.installation_date)
         
-        # أزرار الحفظ والإلغاء
+        # Save and cancel buttons
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
             QDialogButtonBox.StandardButton.Cancel
@@ -944,13 +944,13 @@ class AddSensorDialog(QDialog):
         layout.addRow(button_box)
     
     def accept(self):
-        """عند النقر على موافق"""
+        """Handle confirmation clicks."""
         if not self.sensor_id.text().strip():
-            QMessageBox.warning(self, "تحذير", "يرجى إدخال معرف الحساس")
+            QMessageBox.warning(self, "Warning", "Please enter a sensor ID")
             return
         
         if not self.sensor_model.text().strip():
-            QMessageBox.warning(self, "تحذير", "يرجى إدخال نموذج الحساس")
+            QMessageBox.warning(self, "Warning", "Please enter a sensor model")
             return
         
         super().accept()
@@ -958,7 +958,7 @@ class AddSensorDialog(QDialog):
 class AddMaintenanceDialog(QMessageBox):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("إضافة صيانة جديدة")
-        self.setText("سيتم تطوير نافذة إضافة صيانة جديدة في النسخة القادمة")
-        self.setInformativeText("هذه الميزة قيد التطوير حالياً")
+        self.setWindowTitle("Add new maintenance")
+        self.setText("The add maintenance window will be developed in the next release")
+        self.setInformativeText("This feature is currently under development")
         self.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)

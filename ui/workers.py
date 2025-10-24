@@ -1,20 +1,14 @@
 from PyQt6.QtCore import QObject, pyqtSignal
 
 class WorkerSignals(QObject):
-    """الإشارات التي يرسلها العامل إلى الواجهة"""
-    result = pyqtSignal(object)    # نتيجة العمل (أي نوع بيانات)
-    error = pyqtSignal(str)        # نص الخطأ عند الفشل
-    finished = pyqtSignal()        # عند الانتهاء
-    progress = pyqtSignal(int)     # نسبة التقدم (0-100) إن وُجدت
+    """Signals emitted by the background worker."""
+    result = pyqtSignal(object)    # Result of the task (any data type)
+    error = pyqtSignal(str)        # Error message when execution fails
+    finished = pyqtSignal()        # Emitted when work is complete
+    progress = pyqtSignal(int)     # Optional progress value (0-100)
 
 class BackgroundWorker(QObject):
-    """
-    BackgroundWorker يَنفّذ callable ثقيل خارج خيط الواجهة.
-    الاستخدام:
-      worker = BackgroundWorker(func, *args, **kwargs)
-      worker.moveToThread(thread)
-      thread.started.connect(worker.run)
-    """
+    """Execute a heavy callable away from the UI thread."""
     def __init__(self, func, *args, **kwargs):
         super().__init__()
         self.func = func
@@ -23,7 +17,7 @@ class BackgroundWorker(QObject):
         self.signals = WorkerSignals()
 
     def run(self):
-        """يشغّل الوظيفة الممرّرة ويلتقط النتيجة/الأخطاء"""
+        """Run the provided callable and capture results or errors."""
         try:
             result = self.func(*self.args, **self.kwargs)
             self.signals.result.emit(result)

@@ -1,6 +1,4 @@
-"""
-حزمة واجهة المستخدم لتطبيق iPump
-"""
+"""User interface package for the iPump application."""
 
 from .main_window import MainWindow
 from .dashboard import DashboardTab
