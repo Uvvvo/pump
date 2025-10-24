@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QSplitter, QFrame, QMenu,
                              QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QGridLayout,
                              QComboBox, QDateEdit, QTextEdit, QListWidget, QListWidgetItem, QGroupBox,
-                             QSpinBox)
+                             QSpinBox, QScrollArea, QSizePolicy)
 from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QDate, QThread, QSize
 import matplotlib.pyplot as plt
@@ -323,18 +323,27 @@ class MainWindow(QMainWindow):
         """Create side panel with quick buttons"""
         side_panel = QFrame()
         side_panel.setFrameShape(QFrame.Shape.StyledPanel)
-        side_panel.setMinimumWidth(280)
-        side_panel.setMaximumWidth(350)
+        side_panel.setFixedWidth(320)
         side_panel.setStyleSheet("""
             QFrame {
                 background-color: #0f172a;
                 border-right: 1px solid #1e293b;
             }
         """)
-        
-        layout = QVBoxLayout(side_panel)
-        layout.setContentsMargins(10, 10, 10, 10)
+
+        outer_layout = QVBoxLayout(side_panel)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+
+        content_widget = QWidget()
+        layout = QVBoxLayout(content_widget)
+        layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(15)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         # Side panel title
         side_title = QLabel("System Overview")
@@ -354,6 +363,7 @@ class MainWindow(QMainWindow):
         
         # Quick actions
         quick_actions_group = QGroupBox("Quick Actions")
+        quick_actions_group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         quick_actions_group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
@@ -402,12 +412,16 @@ class MainWindow(QMainWindow):
         self.setup_active_alerts(layout)
         
         layout.addStretch()
-        
+
+        scroll_area.setWidget(content_widget)
+        outer_layout.addWidget(scroll_area)
+
         return side_panel
     
     def setup_quick_stats(self, layout):
         """Setup quick statistics"""
         stats_frame = QFrame()
+        stats_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         stats_frame.setStyleSheet("""
             QFrame {
                 background-color: #1e293b;
@@ -424,25 +438,45 @@ class MainWindow(QMainWindow):
         
         # Live statistics
         stats_grid = QGridLayout()
+        stats_grid.setVerticalSpacing(8)
+        stats_grid.setHorizontalSpacing(12)
+        stats_grid.setColumnStretch(0, 1)
+        stats_grid.setColumnStretch(1, 0)
         
+        total_pumps_label = QLabel("Total Pumps:")
+        total_pumps_label.setStyleSheet("color: #cbd5f5;")
+        stats_grid.addWidget(total_pumps_label, 0, 0)
+
         self.total_pumps_label = QLabel("0")
+        self.total_pumps_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.total_pumps_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #1e88e5;")
-        stats_grid.addWidget(QLabel("Total Pumps:"), 0, 0)
         stats_grid.addWidget(self.total_pumps_label, 0, 1)
-        
+
+        operational_label = QLabel("Operational Pumps:")
+        operational_label.setStyleSheet("color: #cbd5f5;")
+        stats_grid.addWidget(operational_label, 1, 0)
+
         self.operational_label = QLabel("0")
+        self.operational_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.operational_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #51cf66;")
-        stats_grid.addWidget(QLabel("Operational Pumps:"), 1, 0)
         stats_grid.addWidget(self.operational_label, 1, 1)
-        
+
+        sensors_label = QLabel("Active Sensors:")
+        sensors_label.setStyleSheet("color: #cbd5f5;")
+        stats_grid.addWidget(sensors_label, 2, 0)
+
         self.sensors_label = QLabel("0")
+        self.sensors_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.sensors_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #f59f00;")
-        stats_grid.addWidget(QLabel("Active Sensors:"), 2, 0)
         stats_grid.addWidget(self.sensors_label, 2, 1)
-        
+
+        alerts_label = QLabel("Active Alerts:")
+        alerts_label.setStyleSheet("color: #cbd5f5;")
+        stats_grid.addWidget(alerts_label, 3, 0)
+
         self.alerts_label = QLabel("0")
+        self.alerts_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.alerts_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #ff6b6b;")
-        stats_grid.addWidget(QLabel("Active Alerts:"), 3, 0)
         stats_grid.addWidget(self.alerts_label, 3, 1)
         
         stats_layout.addLayout(stats_grid)
@@ -451,6 +485,7 @@ class MainWindow(QMainWindow):
     def setup_active_pumps(self, layout):
         """Setup active pumps list"""
         pumps_frame = QFrame()
+        pumps_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         pumps_frame.setStyleSheet("""
             QFrame {
                 background-color: #1e293b;
@@ -489,6 +524,7 @@ class MainWindow(QMainWindow):
     def setup_active_alerts(self, layout):
         """Setup active alerts display"""
         alerts_frame = QFrame()
+        alerts_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         alerts_frame.setStyleSheet("""
             QFrame {
                 background-color: #1e293b;
